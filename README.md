@@ -1,1 +1,1 @@
-# myscripts for MD simulations
+# My scripts for MD simulations
