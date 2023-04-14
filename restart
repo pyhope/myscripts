@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e # If there is any non-zero status from scripts run by the bash, the bash will automatically error out.
+
+if [ -z $2 ]; then
+    echo Missing parameters!
+    exit 1
+fi
+
+Previous_dir=$1 # the directory name of the previous run, which contains in.lammps, run.slurm (submitting script), and all poly.restart files
+New_dir=$2 # the directory name for a new run
+
+mkdir $New_dir
+cd $Previous_dir
+file_list=(`ls`) # A list of all file names in this directory
+index=0
+declare -a step_list
+for file_name in ${file_list[*]}
+    do
+    file_extension=${file_name##*.} # Extract the extension part (sring after the last '.') of the file name
+    if [ "$file_extension" -gt 0 ] 2>/dev/null ;then # Check if the file extension is a number
+        step_list[index]=$file_extension # If so, store the numbers in a list
+        index=`expr $index + 1`
+    fi
+    done
+max=${step_list[0]}
+for (( k=0;k<${#step_list[*]};k++))
+    do
+    [[ ${max} -lt ${step_list[$k]} ]] && max=${step_list[$k]}
+    done
+echo $max # Find the maximum in the step_list array
+cp poly.restart.$max ../$New_dir
+cp run.slurm ../$New_dir
+cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/poly.restart.$max/}" > ../$New_dir/in.lammps
+cd ../$New_dir
+sbatch run.slurm
+unset step_list

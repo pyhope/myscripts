@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ -z $1 ]; then
+    echo Missing parameters
+    exit 1
+fi
+mkdir nvt
+cd nvt
+
+cp ../../nvt/in.lammps .
+cat ../../nvt/run.slurm | sed -e "s/name=888/name=${1}/g" > ./run.slurm

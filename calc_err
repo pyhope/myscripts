@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if test all_D.txt
+then
+    rm all_D.txt
+fi
+
+for i in {1..10}
+do
+cd $i
+calc_D.py
+cat 'D_H' >> ../all_D.txt
+echo >> ../all_D.txt
+cd ..
+done

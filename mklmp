@@ -1,0 +1,52 @@
+#!/bin/bash
+
+if [ -z $2 ]; then
+    echo Missing parameters!
+    exit 1
+fi
+
+if test -e ./log.lammps
+then
+    echo log.lammps found!
+else
+    echo log.lammps not found!
+    exit 1
+fi
+
+if test -e ./nvt
+then
+    echo nvt found!
+else
+    echo nvt not found at t$1kp$2!
+    exit 1
+fi
+
+if test -e ./BEST_STEP
+then
+    echo Double run!
+    exit 1
+fi
+
+fnvt -t $1 -p $2
+
+if test -e ./BEST_STEP
+then
+    echo Best step found!
+else
+    echo Best step not found at t$1kp$2!
+    exit 1
+fi
+
+beststep=$(cat BEST_STEP)
+
+mkdump.py -t $beststep
+mv brg.dump nvt/
+
+cd nvt
+atomsk brg.dump nvt.lmp
+sed -i '13c 1   24.30500000             # Mg' nvt.lmp
+sed -i '14c 2   28.08500000             # Si' nvt.lmp
+sed -i '15c 3   15.99900000             # O' nvt.lmp
+sed -i '16c 4   1.00800000              # H' nvt.lmp
+
+#sbatch run.slurm

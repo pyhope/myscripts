@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+WDIR=`pwd`
+for i in nvt nvt2 nvt3 nvt4 nvt5 nvt6
+    do
+    cd $WDIR/$i
+    file_list=(`ls`) # A list of all file names in this directory
+    index=0
+    declare -a step_list
+    for file_name in ${file_list[*]}
+        do
+        file_extension=${file_name##*.} # Extract the extension part (sring after the last '.') of the file name
+        if [ "$file_extension" -gt 0 ] 2>/dev/null ;then # Check if the file extension is a number
+            step_list[index]=$file_extension # If so, store the numbers in a list
+            index=`expr $index + 1`
+        fi
+        done
+    max=${step_list[0]}
+    for (( k=0;k<${#step_list[*]};k++))
+        do
+        [[ ${max} -lt ${step_list[$k]} ]] && max=${step_list[$k]}
+        done
+    echo $max >> ../ENDSTEPS # Find the maximum in the step_list array
+    unset step_list
+    done

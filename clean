@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ -z $1 ]; then
+    echo Missing parameters!
+    exit 1
+fi
+
+find . -name "$1" -exec rm -rf {} \;
