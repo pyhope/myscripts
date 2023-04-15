@@ -31,6 +31,12 @@ while line:
     line = datain.readline()
     if line.rstrip().split() == []:
         continue
+    if line.rstrip().split()[0] == 'dump_modify':
+        break
+while line:
+    line = datain.readline()
+    if line.rstrip().split() == []:
+        continue
     if line.rstrip().split()[0] == 'Step':
         break
 flag = 0

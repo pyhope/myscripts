@@ -40,10 +40,10 @@ fi
 beststep=$(cat BEST_STEP)
 
 mkdump.py -t $beststep
-mv brg.dump nvt/
+mv selected.dump nvt/
 
 cd nvt
-atomsk brg.dump nvt.lmp
+atomsk selected.dump nvt.lmp
 sed -i '13c 1   24.30500000             # Mg' nvt.lmp
 sed -i '14c 2   28.08500000             # Si' nvt.lmp
 sed -i '15c 3   15.99900000             # O' nvt.lmp

@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_filename","-i",type=str, default = 'npt.dump' ,help="input filename (npt.dump)")
-parser.add_argument("--output_filename","-o",type=str, default = 'brg.dump' ,help="output filename (brg.dump)")
+parser.add_argument("--output_filename","-o",type=str, default = 'selected.dump' ,help="output filename (selected.dump)")
 parser.add_argument("--timestep","-t",type=str, default = '50000' ,help="target frame")
 
 args   = parser.parse_args()
