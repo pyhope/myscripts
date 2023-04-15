@@ -1,4 +1,4 @@
 #!/bin/bash
 
 log_lmp.py -i log.lammps -y v_jhx v_jhy v_jhz -s -p
-kappa.py -s -sfig
+kappa.py -conf 'nve.lmp' -s -sfig
