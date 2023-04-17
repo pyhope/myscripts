@@ -1,9 +1,7 @@
 #!/bin/bash
 
-if [ -z $2 ]; then
-    echo Missing parameters!
-    exit 1
-fi
+temp=${1:-'4'}
+press=${2:-'140'}
 
 if test -e ./log.lammps
 then
@@ -19,13 +17,13 @@ then
     exit 1
 fi
 
-fnvt -t $1 -p $2
+find_best_frame -t $temp -p $press
 
 if test -e ./BEST_STEP
 then
     echo Best step found!
 else
-    echo Best step not found at t$1kp$2!
+    echo Best step not found!
     exit 1
 fi
 
@@ -33,8 +31,10 @@ beststep=$(cat BEST_STEP)
 
 mkdir nvt
 
-mkdump.py -t $beststep
+extract_dump_frame -t $beststep
 mv selected.dump nvt/
+cp ../inputs/nvt/in.lammps nvt/
+cp ../inputs/nvt/run.slurm nvt/
 
 cd nvt
 atomsk selected.dump nvt.lmp
