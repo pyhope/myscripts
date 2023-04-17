@@ -13,14 +13,6 @@ else
     exit 1
 fi
 
-if test -e ./nvt
-then
-    echo nvt found!
-else
-    echo nvt not found at t$1kp$2!
-    exit 1
-fi
-
 if test -e ./BEST_STEP
 then
     echo Double run!
@@ -38,6 +30,8 @@ else
 fi
 
 beststep=$(cat BEST_STEP)
+
+mkdir nvt
 
 mkdump.py -t $beststep
 mv selected.dump nvt/
