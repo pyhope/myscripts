@@ -3,6 +3,14 @@
 temp=${1:-'4'}
 press=${2:-'140'}
 
+if test -e ./nvt
+then
+    echo ./nvt found!
+else
+    echo ./nvt not found!
+    exit 1
+fi
+
 cd ./nvt
 
 if test -e ./log.lammps
@@ -37,10 +45,12 @@ extract_dump_frame -i nvt.dump -t $beststep
 mv selected.dump ../nve/
 
 cd ..
+sysname=`basename $PWD`
 cp ../_inputs/nve/in.lammps nve/
 cp ../_inputs/nve/run.slurm nve/
 
 cd nve
+sed -i "s/job-name=nve/job-name=${sysname}_nve/g" run.slurm
 atomsk selected.dump nve.lmp
 sed -i 's/1   1.00800000              # H/1   24.30500000             # Mg/g' nve.lmp
 sed -i 's/2   4.00260200              # He/2   28.08500000             # Si/g' nve.lmp
