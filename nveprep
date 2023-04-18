@@ -21,12 +21,6 @@ else
     exit 1
 fi
 
-if test -e ./BEST_STEP
-then
-    echo Double run!
-    exit 1
-fi
-
 find_best_frame -st 10000 -t $temp -p $press
 
 if test -e ./BEST_STEP
