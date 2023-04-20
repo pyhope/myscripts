@@ -143,20 +143,23 @@ def cumsum(xrange,Jx = Jx, Jy=Jy, Jz=Jz):
     cumsum_JJ = (cumsum_JxJx + cumsum_JyJy + cumsum_JzJz)/3
     return cumsum_JJ, JJ*metal2SIps
 
-tcorr = np.array(range(int(200 / timestep)))*timestep # in ps
+tcorr = np.array(range(1000*1000))*timestep # in ps
 tcorr_idx = range(len(tcorr))
     
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
 
-k_t200, j_t200 =cumsum(range(int(200 / timestep)))
-k_t500, j_t500 =cumsum(range(int(500 / timestep)))
-k_t1ns, j_t1ns =cumsum(range(len(Jx)))
+#k_t200, j_t200 =cumsum(range(400*1000))
+k_t500, j_t500 =cumsum(range(1000*1000))
+k_t1ns, j_t1ns =cumsum(range(2000*1000))
+k_t2ns, j_t2ns =cumsum(range(len(Jx)))
+#k_t4ns, j_t4ns =cumsum(range(len(Jx)))
 
-ax[0].plot(tcorr, j_t200[tcorr_idx],label='0.2 ns')
+#ax[0].plot(tcorr, j_t200[tcorr_idx],label='0.2 ns')
 ax[0].plot(tcorr, j_t500[tcorr_idx],label='0.5 ns')
 ax[0].plot(tcorr, j_t1ns[tcorr_idx],label='1 ns')
-
+ax[0].plot(tcorr, j_t2ns[tcorr_idx],label='2 ns')
+#ax[0].plot(tcorr, j_t4ns[tcorr_idx],label='4 ns')
 #ax[0].set_ylabel('autocorrelation*V/kb/T^2  (W m-1 K-1 ps-1)')
 ax[0].set_ylabel('C(t)' + ' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1} \mathrm{ps}^{-1})$')
 
@@ -164,10 +167,11 @@ ax[0].set_ylabel('C(t)' + ' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1} \m
 ax[0].plot(tcorr, np.ones(tcorr.shape)*0,'k--')
 ax[0].set_xscale('log')
 
-ax[1].plot(tcorr, k_t200[tcorr_idx],label='0.2 ns')
+#ax[1].plot(tcorr, k_t200[tcorr_idx],label='0.2 ns')
 ax[1].plot(tcorr, k_t500[tcorr_idx],label='0.5 ns')
 ax[1].plot(tcorr, k_t1ns[tcorr_idx],label='1 ns')
-
+ax[1].plot(tcorr, k_t2ns[tcorr_idx],label='2 ns')
+#ax[1].plot(tcorr, k_t4ns[tcorr_idx],label='4 ns')
 #ax[1].set_xlabel('dt (ps)')
 #ax[1].set_ylabel('thermal conductivity (W m-1 K-1)')
 #ax[1].plot(tcorr, np.ones(tcorr.shape)*2.4,'k--')
@@ -178,7 +182,7 @@ ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 
 ax[1].legend()
 #ax[1].set_ylim([0,3.5])
-ax[1].set_xlim(min(tcorr), 100)
+#ax[1].set_xlim(min(tcorr),10)
 
 ax[1].set_xscale('log')
 
@@ -187,5 +191,5 @@ if args.store_fig:
 
 if args.store:
     with open(args.outfile + '.pkl', 'wb') as file:
-        data = [tcorr, j_t200, j_t500, j_t1ns, k_t200, k_t500, k_t1ns]
+        data = [tcorr, j_t500, j_t1ns, j_t2ns, k_t500, k_t1ns, k_t2ns]
         pkl.dump(data, file)
