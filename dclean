@@ -1,0 +1,8 @@
+#!/bin/bash
+
+find . -type d \( -name nvt \) -exec sh -c '
+  case "$(realpath --relative-to=. "{}")" in
+    */_inputs/*) ;;
+    *) rm -rf "{}" ;;
+  esac
+' \;
