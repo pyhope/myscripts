@@ -12,7 +12,7 @@ rcParams['ytick.direction'] = 'in'
 
 parser = argparse.ArgumentParser(description="Plot contents from lammps log files")
 parser.add_argument("-i", "--input_file", type=str, default="log.lammps",  help="LAMMPS output file")
-parser.add_argument("-o", "--out_figure",type=str,default='kappa_props.jpg', help="Out figure name")
+parser.add_argument("-o", "--out_figure",type=str,default='props.jpg', help="Out figure name")
 parser.add_argument("-n", "--step_number",type=int,default=10000, help="Plot every this number of time steps")
 args = parser.parse_args()
 
@@ -37,4 +37,3 @@ for index, i in enumerate(["Temp", "Press", "PotEng", "TotEng"]):
 ax[3].set_xlabel('Step')
 
 plt.savefig(f, dpi=300, bbox_inches='tight')
-print(f + " finished!")

@@ -20,13 +20,13 @@ parser.add_argument("input_file", type=str,  help="Input file")
 args = parser.parse_args()
 
 with open(args.input_file + '.pkl', 'rb') as file:
-    tcorr, j_t500, j_t1ns, j_t2ns, k_t500, k_t1ns, k_t2ns = pkl.load(file)
+    tcorr, tl, j_list, k_list = pkl.load(file)
 tcorr_idx = range(len(tcorr))
 
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 
-ax[0].plot(tcorr, j_t2ns[tcorr_idx])
-ax[1].plot(tcorr, k_t2ns[tcorr_idx])
+ax[0].plot(tcorr, j_list[-1][tcorr_idx])
+ax[1].plot(tcorr, k_list[-1][tcorr_idx])
 ax[1].set_xlabel('t (ps)')
 ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 
