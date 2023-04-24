@@ -30,16 +30,17 @@ rcParams['font.size'] = '14'
 rcParams['xtick.direction'] = 'in'
 rcParams['ytick.direction'] = 'in'
 
-parser = argparse.ArgumentParser(description="Plot contents from lammps log files")
-parser.add_argument("--input_file", "-i",type=str, default="log.properties",  help="log_lmp generated file")
-parser.add_argument("--timestep", "-ts",type=float,  help=" timestep in fs, default 1fs")
-parser.add_argument("--temperature", "-t",type=float,help='temperature in K')
-parser.add_argument("--volume", "-v",type=float,help='volume in A3')
-parser.add_argument("-conf", "--configeration", type=str, default='conf.lmp', help="read volume from this file")
-parser.add_argument("-s", "--store", default=False, action='store_true', help="Defualt:  Do not save data as outfile")
-parser.add_argument("-of", "--outfile",type=str,default='log.kappa', help="out file name")
-parser.add_argument("-sfig", "--store_fig", default=False, action='store_true', help="Defualt:  Do not save the figure as outfig")
-parser.add_argument("-ofig", "--outfig",type=str,default='kappa.jpg', help="out figure name")
+parser = argparse.ArgumentParser(description="Plot the time convergence of kappa")
+parser.add_argument("--time_list", "-tl", nargs="+", type=float, help="list of time values (in ns) used to compare. No need to input the full length of data which will be automatically calculated")
+parser.add_argument("--input_file", "-i", type=str, default="log.properties",  help="log_lmp generated file")
+parser.add_argument("--timestep", "-ts", type=float,  help=" timestep in fs, default 1fs")
+parser.add_argument("--temperature", "-t", type=float,help='temperature in K')
+parser.add_argument("--volume", "-v", type=float,help='volume in A3')
+parser.add_argument("--configeration", "-conf", type=str, default='nve.lmp', help="read volume from this file")
+parser.add_argument("--store", "-s", default=False, action='store_true', help="Defualt:  Do not save data as outfile")
+parser.add_argument("--outfile", "-of", type=str,default='log.kappa', help="out file name")
+parser.add_argument("--store_fig", "-sfig", default=False, action='store_true', help="Defualt:  Do not save the figure as outfig")
+parser.add_argument("--outfig", "-ofig", type=str,default='kappa.jpg', help="out figure name")
 
 args = parser.parse_args()
 
@@ -143,31 +144,36 @@ def cumsum(xrange,Jx = Jx, Jy=Jy, Jz=Jz):
     cumsum_JJ = (cumsum_JxJx + cumsum_JyJy + cumsum_JzJz)/3
     return cumsum_JJ, JJ*metal2SIps
 
-tcorr = np.array(range(int(200 / timestep)))*timestep # in ps
-tcorr_idx = range(len(tcorr))
-    
+if args.time_list:
+    tl = args.time_list
+else:
+    tl = []
+tl.append(len(Jx) * timestep / 1000)
+
+tcorr = np.array(range(int(tl[0] * 1000 / timestep)))*timestep # in ps
+tcorr_idx = len(tcorr)
+
+k_list, j_list = [], []
+for t in tl:
+    k, j =cumsum(range(int(t * 1000 / timestep)))
+    k_list.append(k)
+    j_list.append(j)
+
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
 
-k_t200, j_t200 =cumsum(range(int(200 / timestep)))
-k_t500, j_t500 =cumsum(range(int(500 / timestep)))
-k_t1ns, j_t1ns =cumsum(range(len(Jx)))
-
-ax[0].plot(tcorr, j_t200[tcorr_idx],label='0.2 ns')
-ax[0].plot(tcorr, j_t500[tcorr_idx],label='0.5 ns')
-ax[0].plot(tcorr, j_t1ns[tcorr_idx],label='1 ns')
-
+for index, j in enumerate(j_list):
+    ax[0].plot(tcorr, j[:tcorr_idx],label="%.2f" % (tl[index]) + ' ns')
 #ax[0].set_ylabel('autocorrelation*V/kb/T^2  (W m-1 K-1 ps-1)')
 ax[0].set_ylabel('C(t)' + ' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1} \mathrm{ps}^{-1})$')
 
 #ax[0].grid(True)
 ax[0].plot(tcorr, np.ones(tcorr.shape)*0,'k--')
 ax[0].set_xscale('log')
+ax[0].set_ylim(bottom = - 0.1 * max(j), auto = True)
 
-ax[1].plot(tcorr, k_t200[tcorr_idx],label='0.2 ns')
-ax[1].plot(tcorr, k_t500[tcorr_idx],label='0.5 ns')
-ax[1].plot(tcorr, k_t1ns[tcorr_idx],label='1 ns')
-
+for index, k in enumerate(k_list):
+    ax[1].plot(tcorr, k[:tcorr_idx],label = "%.2f" % (tl[index]) + ' ns')
 #ax[1].set_xlabel('dt (ps)')
 #ax[1].set_ylabel('thermal conductivity (W m-1 K-1)')
 #ax[1].plot(tcorr, np.ones(tcorr.shape)*2.4,'k--')
@@ -178,7 +184,8 @@ ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 
 ax[1].legend()
 #ax[1].set_ylim([0,3.5])
-ax[1].set_xlim(min(tcorr), 100)
+ax[1].set_xlim(min(tcorr[np.nonzero(tcorr)]), tl[0] * 1000 / 2)
+ax[1].set_ylim(bottom = 0, top = 8, auto = True)
 
 ax[1].set_xscale('log')
 
@@ -187,5 +194,5 @@ if args.store_fig:
 
 if args.store:
     with open(args.outfile + '.pkl', 'wb') as file:
-        data = [tcorr, j_t200, j_t500, j_t1ns, k_t200, k_t500, k_t1ns]
+        data = [tcorr, tl, j_list, k_list]
         pkl.dump(data, file)
