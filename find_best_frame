@@ -13,15 +13,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--input_filename","-i",type=str, default = 'log.lammps' ,help="input filename (log.lammps)")
 parser.add_argument("--startstep","-st",type=int, default = 40000 ,help="start step (40000)")
 parser.add_argument("--temperature","-t",type=float, default = 2 ,help="temperature (1e3*K)")
-parser.add_argument("--temperature_err","-te",type=float, default = 20 ,help="temperature error (K)")
 parser.add_argument("--pressure","-p",type=float, default = 25 ,help="pressure (GPa)")
-parser.add_argument("--pressure_err","-pe",type=float, default = 1000 ,help="pressure error (bar)")
 
 args   = parser.parse_args()
 targ_temp = 1000 * args.temperature
 targ_pres = 10000 * args.pressure
-temp_err = args.temperature_err
-pres_err = args.pressure_err
+temp_err = targ_temp * 0.01
+pres_err = targ_pres * 0.01
 stsp = args.startstep
 
 datain = open(args.input_filename, "r")
@@ -49,6 +47,7 @@ while line:
         break
     if int(line.rstrip().split()[0]) >= stsp:
         step = int(line.rstrip().split()[0])
+        eng = float(line.rstrip().split()[3])
         temp = float(line.rstrip().split()[4])
         pres = float(line.rstrip().split()[5])
         #print(temp, pres)
@@ -56,8 +55,8 @@ while line:
             if pres > targ_pres - pres_err and pres < targ_pres + pres_err:
                 score = 10 / ( np.abs(((temp - targ_temp)/temp_err)) + np.abs(((pres - targ_pres)/pres_err)))
                 Goodstep[step] = score
-                gsinfo[step] = (temp, pres, score)
-                print('STEP:', step, 'T:', temp, 'P:', pres, 'SCORE: %.2f' % ( Goodstep[step]))
+                gsinfo[step] = (eng, temp, pres, score)
+                print('STEP:', step, 'E:', eng, 'T:', temp, 'P:', pres, 'SCORE: %.2f' % ( Goodstep[step]))
                 flag = 1
 
 if flag == 0:
@@ -66,7 +65,7 @@ if flag == 0:
 
 beststep = max(Goodstep, key=Goodstep.get)
 print('*' * 100)
-print('BEST_STEP:', beststep, 'T:', gsinfo[beststep][0], 'P:', gsinfo[beststep][1], 'SCORE: %.2f' % (gsinfo[beststep][2]))
+print('BEST_STEP:', beststep, 'E:', gsinfo[beststep][0], 'T:', gsinfo[beststep][1], 'P:', gsinfo[beststep][2], 'SCORE: %.2f' % (gsinfo[beststep][3]))
 
 dataout = open('BEST_STEP', "w")
 dataout.write(str(beststep))

@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Created on Mon April 24 2023
+@author: Yihang Peng
+"""
+
+import numpy as np
+import lammps_logfile
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_filename","-i",type=str, default = 'log.lammps' ,help="input filename (log.lammps)")
+parser.add_argument("--startstep","-st",type=int, default = 40000 ,help="start step (40000)")
+parser.add_argument("--temperature","-t",type=float, default = 2 ,help="temperature (1e3*K)")
+parser.add_argument("--pressure","-p",type=float, default = 25 ,help="pressure (GPa)")
+
+args = parser.parse_args()
+targ_temp = 1000 * args.temperature
+targ_pres = 10000 * args.pressure
+temp_err = targ_temp * 0.01
+pres_err = targ_pres * 0.01
+stsp = args.startstep
+
+log = lammps_logfile.File(args.input_filename)
+step = log.get("Step")[stsp:]
+temp = log.get("Temp")[stsp:]
+press = log.get("Press")[stsp:]
+toteng = log.get("TotEng")[stsp:]
+Goodstep = dict()
+gsinfo = dict()
+flag = 0
+
+avg_E, avg_T, avg_P = np.mean(toteng), np.mean(temp), np.mean(press)
+print("Average temperature is %.3f" % (avg_T))
+print("Average pressure is %.3f" % (avg_P))
+print("Expected total energy is %.3f" % (avg_E))
+
+for index, e in enumerate(toteng):
+    t, p = temp[index], press[index]
+    if e / avg_E > 0.9999 and e / avg_E < 1.0001:
+        if t > targ_temp - temp_err and t < targ_temp + temp_err:
+            if p > targ_pres - pres_err and p < targ_pres + pres_err:
+                score = 10 / ( np.abs(((t - targ_temp)/temp_err)) + np.abs(((p - targ_pres)/pres_err)))
+                Goodstep[step[index]] = score
+                gsinfo[step[index]] = (e, t, p, score)
+                print('STEP:', step[index], 'E:', e, 'T:', t, 'P:', p, 'SCORE: %.2f' % ( Goodstep[step[index]]))
+            
+beststep = int(max(Goodstep, key=Goodstep.get))
+print('*' * 100)
+print('BEST_STEP:', beststep, 'E:', gsinfo[beststep][0], 'T:', gsinfo[beststep][1], 'P:', gsinfo[beststep][2], 'SCORE: %.2f' % (gsinfo[beststep][3]))
+
+dataout = open('BEST_STEP', "w")
+dataout.write(str(beststep))
