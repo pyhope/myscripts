@@ -14,6 +14,9 @@ import glob
 import scipy.integrate
 import pickle as pkl
 from matplotlib import rcParams
+import multiprocessing
+import os
+
 rcParams['font.size'] = '14'
 rcParams['xtick.direction'] = 'in'
 rcParams['ytick.direction'] = 'in'
@@ -117,35 +120,44 @@ file = args.input_file
 
 J=np.loadtxt(file) # heat current J is saved, but heat flux (energy x velocity) autocorrelation is saved in J0Jt, heat flux/V = heat flux
 J = J*V
-Jx, Jy, Jz = J[:,1], J[:,2], J[:,3]
+Jxyz = J[:,1], J[:,2], J[:,3]
 
 #correlation time
 
-def cumsum(xrange,Jx = Jx, Jy=Jy, Jz=Jz):
-    JxJx = autocorr(Jx[xrange])
-    JyJy = autocorr(Jy[xrange])
-    JzJz = autocorr(Jz[xrange])
-    JJ = (JxJx + JyJy + JzJz)/3
-    cumsum_JxJx = scipy.integrate.cumtrapz(JxJx,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-    cumsum_JyJy = scipy.integrate.cumtrapz(JyJy,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-    cumsum_JzJz = scipy.integrate.cumtrapz(JzJz,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-    cumsum_JJ = (cumsum_JxJx + cumsum_JyJy + cumsum_JzJz)/3
+def cumsum(t, dir):
+    xrange = range(int(t * 1000 / timestep))
+    JJ = autocorr(Jxyz[dir][xrange])
+    cumsum_JJ = scipy.integrate.cumtrapz(JJ,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
     return cumsum_JJ, JJ*metal2SIps
 
 if args.time_list:
     tl = args.time_list
 else:
     tl = []
-tl.append(len(Jx) * timestep / 1000)
+tl.append(len(Jxyz[0]) * timestep / 1000)
 
 tcorr = np.array(range(int(tl[0] * 1000 / timestep)))*timestep # in ps
 tcorr_idx = len(tcorr)
 
+tasks = [(t, jj) for t in tl for jj in (0, 1, 2)]
+print(tasks)
+cores = int(os.getenv('SLURM_CPUS_PER_TASK'))
+print(cores)
+if __name__ == '__main__':
+    pool = multiprocessing.Pool(processes=cores)
+    results = pool.starmap(cumsum, tasks)
+
+Data = dict()
+for i, t in enumerate(tasks):
+    Data[t] = results[i]
+
 k_list, j_list = [], []
 for t in tl:
-    k, j =cumsum(range(int(t * 1000 / timestep)))
-    k_list.append(k)
-    j_list.append(j)
+    kx, jx = Data[(t, 0)]
+    ky, jy = Data[(t, 1)]
+    kz, jz = Data[(t, 2)]
+    k_list.append((kx + ky + kz) / 3)
+    j_list.append((jx + jy + jz) / 3)
 
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
@@ -156,7 +168,7 @@ for index, j in enumerate(j_list):
 ax[0].set_ylabel('C(t)' + ' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1} \mathrm{ps}^{-1})$')
 
 #ax[0].grid(True)
-ax[0].plot(tcorr, np.ones(tcorr.shape)*0,'k--')
+ax[0].plot(tcorr, np.ones(tcorr.shape)*0, 'k--')
 ax[0].set_xscale('log')
 ax[0].set_ylim(bottom = - 0.1 * max(j), auto = True)
 
