@@ -123,12 +123,18 @@ Jx, Jy, Jz = J[:,1], J[:,2], J[:,3]
 
 def cumsum(xrange,Jx = Jx, Jy=Jy, Jz=Jz):
     JxJx = autocorr(Jx[xrange])
+    print('Jx')
     JyJy = autocorr(Jy[xrange])
+    print('Jy')
     JzJz = autocorr(Jz[xrange])
+    print('Jz')
     JJ = (JxJx + JyJy + JzJz)/3
     cumsum_JxJx = scipy.integrate.cumtrapz(JxJx,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
+    print('Kx')
     cumsum_JyJy = scipy.integrate.cumtrapz(JyJy,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
+    print('Ky')
     cumsum_JzJz = scipy.integrate.cumtrapz(JzJz,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
+    print('Kz')
     cumsum_JJ = (cumsum_JxJx + cumsum_JyJy + cumsum_JzJz)/3
     return cumsum_JJ, JJ*metal2SIps
 
@@ -143,6 +149,7 @@ tcorr_idx = len(tcorr)
 
 k_list, j_list = [], []
 for t in tl:
+    print(t)
     k, j =cumsum(range(int(t * 1000 / timestep)))
     k_list.append(k)
     j_list.append(j)
