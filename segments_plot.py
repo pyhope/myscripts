@@ -31,6 +31,11 @@ def autocorr(a):
 
 if args.temperature:
     T = args.temperature
+elif os.path.exists('Temp.txt'):
+    print("  ?? temperature not provided, parse from Temp.txt") 
+    with open("Temp.txt", "r") as file:
+        T = float(file.read())
+        print('  ** T = ', T)
 else:
     infile = glob.glob('in*')[0]
     print('  Find ', infile)
