@@ -6,7 +6,6 @@ Created on Sun Apr 23 2021
 """
 
 #from util import reverse_readline
-#import os 
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt

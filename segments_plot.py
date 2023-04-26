@@ -7,6 +7,7 @@ import scipy.integrate
 from matplotlib import rcParams
 import pickle as pkl
 import argparse
+import os
 
 rcParams['font.size'] = '14'
 rcParams['xtick.direction'] = 'in'
