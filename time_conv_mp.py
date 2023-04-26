@@ -69,7 +69,7 @@ if args.timestep:
 else:
     infile = glob.glob('in*')[0]
     print('  Find ', infile)
-    print("  ?? timestep not provided, parse from in file") 
+    print("  ?? timestep not provided, parse from in file. Warning: The results may be not accurate!!!!") 
     fp = open(infile)
     ins = fp.readlines()
     for line in ins:
