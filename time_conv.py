@@ -20,7 +20,7 @@ rcParams['ytick.direction'] = 'in'
 
 parser = argparse.ArgumentParser(description="Plot the time convergence of kappa")
 parser.add_argument("--time_list", "-tl", nargs="+", type=float, help="list of time values (in ns) used to compare. No need to input the full length of data which will be automatically calculated")
-parser.add_argument("--input_file", "-i", type=str, default="log.properties",  help="log_lmp generated file")
+parser.add_argument("--input_file", "-i", type=str, default="jh.dat",  help="log_lmp generated file")
 parser.add_argument("--timestep", "-ts", type=float,  help=" timestep in fs, default 1fs")
 parser.add_argument("--temperature", "-t", type=float,help='temperature in K')
 parser.add_argument("--volume", "-v", type=float,help='volume in A3')
@@ -130,11 +130,8 @@ def cumsum(xrange,Jx = Jx, Jy=Jy, Jz=Jz):
     print('Jz')
     JJ = (JxJx + JyJy + JzJz)/3
     cumsum_JxJx = scipy.integrate.cumtrapz(JxJx,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-    print('Kx')
     cumsum_JyJy = scipy.integrate.cumtrapz(JyJy,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-    print('Ky')
     cumsum_JzJz = scipy.integrate.cumtrapz(JzJz,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-    print('Kz')
     cumsum_JJ = (cumsum_JxJx + cumsum_JyJy + cumsum_JzJz)/3
     return cumsum_JJ, JJ*metal2SIps
 

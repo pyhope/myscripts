@@ -23,7 +23,7 @@ rcParams['ytick.direction'] = 'in'
 
 parser = argparse.ArgumentParser(description="Plot the time convergence of kappa")
 parser.add_argument("--time_list", "-tl", nargs="+", type=float, help="list of time values (in ns) used to compare. No need to input the full length of data which will be automatically calculated")
-parser.add_argument("--input_file", "-i", type=str, default="log.properties",  help="log_lmp generated file")
+parser.add_argument("--input_file", "-i", type=str, default="jh.dat",  help="log_lmp generated file")
 parser.add_argument("--timestep", "-ts", type=float,  help=" timestep in fs, default 1fs")
 parser.add_argument("--temperature", "-t", type=float,help='temperature in K')
 parser.add_argument("--volume", "-v", type=float,help='volume in A3')
