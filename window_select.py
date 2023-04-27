@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("input_file", type=str,  help="Input file")
 args = parser.parse_args()
 
-with open(args.input_file + '.pkl', 'rb') as file:
+with open(args.input_file, 'rb') as file:
     tcorr, tl, j_list, k_list = pkl.load(file)
 tcorr_idx = range(len(tcorr))
 
@@ -33,5 +33,5 @@ ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 plt.gca().set_xlim(2e-4, 50)
 
 ax[1].set_xscale('log')
-ax[1].set_ylim(0, 6)
+ax[1].set_ylim(0, 10)
 plt.show()
