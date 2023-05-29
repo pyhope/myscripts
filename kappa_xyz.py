@@ -23,7 +23,6 @@ parser.add_argument("--temperature", "-t", type=float,help='temperature in K')
 parser.add_argument("--volume", "-v", type=float,help='volume in A3')
 parser.add_argument("--configeration", "-conf", type=str, default='nve.lmp', help="read volume from this file")
 parser.add_argument("--outfile", "-o", type=str,default='kappa', help="out file name")
-parser.add_argument("--outfig", "-ofig", type=str,default='kappa.jpg', help="out figure name")
 
 args = parser.parse_args()
 
@@ -162,7 +161,7 @@ ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 
 ax[1].set_xscale('log')
 
-plt.savefig(args.outfig, dpi=300, bbox_inches='tight')
+plt.savefig(args.outfile + '.jpg', dpi=300, bbox_inches='tight')
 
 with open(args.outfile + '.pkl', 'wb') as file:
     print('Total time for plotting:', tcorr[-1])
