@@ -17,11 +17,12 @@ rcParams['ytick.direction'] = 'in'
 
 parser = argparse.ArgumentParser(description="Plot the time convergence of kappa")
 parser.add_argument("--input_file", "-i", type=str, default="jh.dat",  help="log_lmp generated file")
-parser.add_argument("--timestep", "-ts", type=float,  help=" timestep in fs, default 1fs")
+parser.add_argument("--timestep", "-ts", type=float, help=" timestep in fs, default 1fs")
+parser.add_argument("--total_time", "-tt", type=float, default=100, help="total time for plotting in ps, default 100 ps")
 parser.add_argument("--temperature", "-t", type=float,help='temperature in K')
 parser.add_argument("--volume", "-v", type=float,help='volume in A3')
 parser.add_argument("--configeration", "-conf", type=str, default='nve.lmp', help="read volume from this file")
-parser.add_argument("--outfile", "-o", type=str,default='log.kappa', help="out file name")
+parser.add_argument("--outfile", "-o", type=str,default='kappa', help="out file name")
 parser.add_argument("--outfig", "-ofig", type=str,default='kappa.jpg', help="out figure name")
 
 args = parser.parse_args()
@@ -98,18 +99,13 @@ else:
     V = (xhi - xlo)*(yhi - ylo)*(zhi - zlo)
     print(' ** volume = ', V)
 
-
 # convert from LAMMPS real units to SI
 kB   = 1.3806504e-23   # [J/K] Boltzmann
 ev2j = 1.60218e-19
 A2m  = 1.0e-10
 ps2s = 1.0e-12
 convert     = ev2j*ev2j/ps2s/A2m
-
-sample_rate = 1       # for all mgsio3 syste, sample every single step
-
-scale = convert/kB/T/T/V*sample_rate*timestep
-
+scale = convert/kB/T/T/V*timestep
 metal2SIps = convert/kB/T/T/V
 
 file = args.input_file
@@ -117,31 +113,36 @@ file = args.input_file
 J=np.loadtxt(file) # heat current J is saved, but heat flux (energy x velocity) autocorrelation is saved in J0Jt, heat flux/V = heat flux
 J = J*V
 Jx, Jy, Jz = J[:,1], J[:,2], J[:,3]
+t = np.arange(len(Jx)) * timestep
 
 #correlation time
-tcorr = np.array(range(int(100 / timestep)))*timestep # in ps
+tcorr = np.array(range(int(args.total_time/timestep)+1)) * timestep # in ps
 tcorr_len = len(tcorr)
 
-JxJx = autocorr(Jx)[:tcorr_len]
-print('Jx')
-JyJy = autocorr(Jy)[:tcorr_len]
-print('Jy')
-JzJz = autocorr(Jz)[:tcorr_len]
-print('Jz')
+JxJx = autocorr(Jx)
+print('Jx done!')
+JyJy = autocorr(Jy)
+print('Jy done!')
+JzJz = autocorr(Jz)
+print('Jz done!')
 
 cumsum_JxJx = scipy.integrate.cumtrapz(JxJx,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
 cumsum_JyJy = scipy.integrate.cumtrapz(JyJy,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
 cumsum_JzJz = scipy.integrate.cumtrapz(JzJz,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
 
-jxyz = np.array([JxJx, JyJy, JzJz]) * metal2SIps
-kxyz = np.array([cumsum_JxJx, cumsum_JyJy, cumsum_JzJz])
+jxyz_full = np.array([JxJx, JyJy, JzJz]) * metal2SIps
+kxyz_full = np.array([cumsum_JxJx, cumsum_JyJy, cumsum_JzJz])
+
+jxyz = jxyz_full[:,:tcorr_len]
+kxyz = kxyz_full[:,:tcorr_len]
+
 j = np.mean(jxyz, axis=0)
 k = np.mean(kxyz, axis=0)
 
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
 
-ax[0].plot(tcorr, j, c='k', label='average')
+ax[0].plot(tcorr, j, c='k', label='average (%d ns)' % (t[-1] / 1000))
 ax[0].plot(tcorr, jxyz[0], c='C1', label='x')
 ax[0].plot(tcorr, jxyz[1], c='C2', label='y')
 ax[0].plot(tcorr, jxyz[2], c='C0', label='z')
@@ -151,7 +152,7 @@ ax[0].plot(tcorr, np.ones(tcorr.shape)*0,'k--')
 ax[0].set_xscale('log')
 ax[0].legend(fancybox=False, edgecolor='black')
 
-ax[1].plot(tcorr, k, c='k', label='average')
+ax[1].plot(tcorr, k, c='k', label='average (%.1f)' % (t[-1] / 1000))
 ax[1].plot(tcorr, kxyz[0], c='C1', label='x')
 ax[1].plot(tcorr, kxyz[1], c='C2', label='y')
 ax[1].plot(tcorr, kxyz[2], c='C0', label='z')
@@ -164,5 +165,11 @@ ax[1].set_xscale('log')
 plt.savefig(args.outfig, dpi=300, bbox_inches='tight')
 
 with open(args.outfile + '.pkl', 'wb') as file:
+    print('Total time for plotting:', tcorr[-1])
     data = [tcorr, jxyz, kxyz]
+    pkl.dump(data, file)
+
+with open(args.outfile + '_full.pkl', 'wb') as file:
+    print('Total time for autocorrelation:', t[-1])
+    data = [t, jxyz_full, kxyz_full]
     pkl.dump(data, file)

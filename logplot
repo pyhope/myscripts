@@ -39,5 +39,6 @@ for index, i in enumerate(["Temp", "Press", "PotEng", "TotEng"]):
 ax[3].set_xlabel('Step')
 
 plt.savefig(f, dpi=300, bbox_inches='tight')
+plt.show()
 with open("Temp.txt", "w") as file:
     file.write(str(avg_t))
