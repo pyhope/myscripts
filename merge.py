@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-dirnames = ['nvt', 'nvt2', 'nvt3', 'nvt4', 'nvt5', 'nvt6']
+dirnames = ['nvt', 'nvt2', 'nvt3']
 endsteps = np.loadtxt('ENDSTEPS', unpack=True, dtype=str)
 
 dataout = open('full_nvt.dump', 'w')

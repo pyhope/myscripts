@@ -3,9 +3,10 @@
 set -e
 
 WDIR=`pwd`
-for i in nvt nvt2 nvt3 nvt4 nvt5 nvt6
+for i in $@
     do
-    cd $WDIR/$i
+    echo $i
+    cd $WDIR/$i/restart
     file_list=(`ls`) # A list of all file names in this directory
     index=0
     declare -a step_list
@@ -22,6 +23,6 @@ for i in nvt nvt2 nvt3 nvt4 nvt5 nvt6
         do
         [[ ${max} -lt ${step_list[$k]} ]] && max=${step_list[$k]}
         done
-    echo $max >> ../ENDSTEPS # Find the maximum in the step_list array
+    echo $max >> $WDIR/ENDSTEPS # Find the maximum in the step_list array
     unset step_list
     done

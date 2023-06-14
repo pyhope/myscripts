@@ -163,12 +163,15 @@ ax[1].set_xscale('log')
 
 plt.savefig(args.outfile + '.jpg', dpi=300, bbox_inches='tight')
 
+with open("Press.txt", "r") as file:
+    P = float(file.read())
+
 with open(args.outfile + '.pkl', 'wb') as file:
+    print('Total time for autocorrelation:', t[-1])
     print('Total time for plotting:', tcorr[-1])
-    data = [tcorr, jxyz, kxyz]
+    data = [T, P, tcorr, jxyz, kxyz]
     pkl.dump(data, file)
 
-with open(args.outfile + '_full.pkl', 'wb') as file:
-    print('Total time for autocorrelation:', t[-1])
-    data = [t, jxyz_full, kxyz_full]
-    pkl.dump(data, file)
+# with open(args.outfile + '_full.pkl', 'wb') as file:
+#     data = [T, t, jxyz_full, kxyz_full]
+#     pkl.dump(data, file)

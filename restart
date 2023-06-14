@@ -12,7 +12,7 @@ New_dir=$2 # the directory name for a new run
 
 mkdir $New_dir
 cd $Previous_dir
-file_list=(`ls`) # A list of all file names in this directory
+file_list=(`ls restart`) # A list of all file names in this directory
 index=0
 declare -a step_list
 for file_name in ${file_list[*]}
@@ -29,9 +29,10 @@ for (( k=0;k<${#step_list[*]};k++))
     [[ ${max} -lt ${step_list[$k]} ]] && max=${step_list[$k]}
     done
 echo $max # Find the maximum in the step_list array
-cp poly.restart.$max ../$New_dir
+cp restart/poly.restart.$max ../$New_dir
 cp run.slurm ../$New_dir
 cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/poly.restart.$max/}" > ../$New_dir/in.lammps
 cd ../$New_dir
+mkdir restart
 sbatch run.slurm
 unset step_list

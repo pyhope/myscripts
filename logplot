@@ -28,6 +28,7 @@ for index, i in enumerate(["Temp", "Press", "PotEng", "TotEng"]):
     y = log.get(i)
     if i == "Press":
         y /= 1e4
+        avg_p = np.mean(y)
     avgy = np.mean(y)
     if i == "Temp":
         avg_t = avgy
@@ -42,3 +43,5 @@ plt.savefig(f, dpi=300, bbox_inches='tight')
 plt.show()
 with open("Temp.txt", "w") as file:
     file.write(str(avg_t))
+with open("Press.txt", "w") as file:
+    file.write(str(avg_p))
