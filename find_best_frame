@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_filename","-i",type=str, default = 'log.lammps' ,help="input filename (log.lammps)")
-parser.add_argument("--startstep","-st",type=int, default = 20000 ,help="start step (40000)")
+parser.add_argument("--startstep","-st",type=int, default = 5000 ,help="start step (5000)")
 parser.add_argument("--temperature","-t",type=float, default = 2 ,help="temperature (1e3*K)")
 parser.add_argument("--pressure","-p",type=float, default = 25 ,help="pressure (GPa)")
 

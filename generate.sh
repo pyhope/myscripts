@@ -16,6 +16,8 @@ He  4
 EOF
 
 atomsk $1 -select random $2 Mg -substitute Mg He -properties types.txt tmp.lmp
+# atomsk brg-221.lmp -select random 1 Mg -substitute Mg He -properties types.txt tmp.lmp
+# atomsk $1 -select list $2 -substitute Mg He -properties types.txt tmp.lmp
 atomsk tmp.lmp tmp.pdb
 
 distance.py -i tmp.pdb.pdb
