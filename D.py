@@ -46,4 +46,4 @@ print("D_H = ", D, "* 1e-9 m^2/s")
 print("R^2 = ", Rs)
 
 dataout = open(args.output, "w")
-dataout.write(str(D)+' '+str(Rs)+' ')
+dataout.write(str(D)+' ')

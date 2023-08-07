@@ -38,10 +38,12 @@ writedata += datain.readline()
 line = datain.readline()
 atom_num = int(line)
 writedata += line
-while line.split(' ')[0] != str(atom_num):
+i = -4
+while i <= atom_num:
     if line:
         line = datain.readline()
         writedata += line
+        i += 1
     else:
         print("Error!")
 

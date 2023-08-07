@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Created on Sun Oct  9 12:25:43 2022
+@author: Yihang Peng
+"""
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_filename","-i",type=str, default = 'npt.dump' ,help="input filename (npt.dump)")
+parser.add_argument("--beginstep","-tb",type=int, help="target begin frame")
+parser.add_argument("--endstep","-te",type=int, help="target end frame")
+
+args   = parser.parse_args()
+
+t_begin, t_end = args.beginstep, args.endstep
+
+datain = open(args.input_filename, 'r')
+
+# Find and record the target frame
+line = datain.readline()
+while line:
+    while line.rstrip() != "ITEM: TIMESTEP":
+        if line:
+            line = datain.readline()
+        else:
+            break
+    else:
+        writedata = line
+        line = datain.readline()
+        thisframe = int(line.rstrip())
+        if thisframe >= t_begin:
+            if thisframe > t_end:
+                break
+            writedata += line
+            writedata += datain.readline()
+            line = datain.readline()
+            atom_num = int(line)
+            writedata += line
+            i = -4
+            while i <= atom_num:
+                if line:
+                    line = datain.readline()
+                    writedata += line
+                    i += 1
+                else:
+                    print("Error!")
+            with open(str(thisframe) + '.dump', 'w') as dataout:
+                dataout.write(writedata)
+            print("Frame " + str(thisframe) + " is extracted!")

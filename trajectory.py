@@ -17,7 +17,6 @@ rcParams['ytick.direction'] = 'in'
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str, help="input file")
 parser.add_argument("--atom","-a",type = int, default = 1, help="The atom to analyze")
-parser.add_argument("--format","-ft",type = str, default = 'LAMMPSDUMP', help="file format, e.g., LAMMPSDUMP, PDB")
 parser.add_argument("--timestep","-ts",type = int, default = 1, help="timestep")
 
 args   = parser.parse_args()
@@ -27,16 +26,14 @@ data = open(args.file, 'r')
 line = data.readline()
 while line:
     line = data.readline()
-    if line.split():
-        if line.split()[0] == str(args.atom):
-            pos_data = line.split()
-            posx.append(float(pos_data[2]))
-            posy.append(float(pos_data[3]))
-            if float(pos_data[4]) > 20:
-                posz.append(float(pos_data[4]) - 27.279736868684)
-            else:
+    if len(line.split()) >= 3:
+            if line.split()[0] == str(args.atom):
+                pos_data = line.split()
+                posx.append(float(pos_data[2]))
+                posy.append(float(pos_data[3]))
                 posz.append(float(pos_data[4]))
 pos = np.array([posx, posy, posz])
+
 
 np.savetxt('pos.txt', pos.T, header='    '.join(dim), fmt = '%2.5f')
 plt.figure(figsize=(8, 6), dpi=300)
