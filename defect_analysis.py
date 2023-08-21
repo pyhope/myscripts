@@ -4,9 +4,16 @@
 from ase.io.lammpsdata import read_lammps_data
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import argparse
 
-frame = read_lammps_data("averaged.lmp", style="atomic")
+parser = argparse.ArgumentParser(description="Calculate the antisite defect concentration")
+parser.add_argument("--input_file", "-i", type=str, default="averaged.lmp",  help="input .lmp file")
+parser.add_argument("--atom_num_per_layer", "-n", type=int, default=32,  help="number of atoms per layer in perfect structure")
+parser.add_argument("--isppv", "-ppv", default=False, action='store_true', help="Defualt: this is brg structure")
+
+args = parser.parse_args()
+atom_num_per_layer_perfect = args.atom_num_per_layer
+frame = read_lammps_data(args.input_file, style="atomic")
 
 chemical_symbols = []
 
@@ -30,7 +37,11 @@ for atom in frame.positions:
 
 df = pd.DataFrame({"Index": [i for i in range(1, len(frame) + 1)], "Type": frame.get_chemical_symbols(), "X": x_lst, "Y": y_lst, "Z": z_lst})
 
-df = df.loc[(df.X > 12) & ((df.Type == "Mg") | (df.Type == "Si"))]
+if args.isppv:
+    df = df.loc[((df.Type == "Mg") | (df.Type == "Si"))]
+    atom_num_per_layer_perfect = 72
+else:
+    df = df.loc[(df.X > 12) & ((df.Type == "Mg") | (df.Type == "Si"))]
 
 df.sort_values(by=["Z"], inplace=True, ignore_index=True)
 df.to_csv("sorted.csv")
@@ -55,8 +66,6 @@ for index, row in df_iter:
         current_layer.append(index)
 if current_layer:
     layers.append(current_layer)
-
-atom_num_per_layer_perfect = 36
 
 # quantities to calculate
 si_to_mg = 0
