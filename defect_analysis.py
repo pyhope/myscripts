@@ -8,7 +8,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Calculate the antisite defect concentration")
 parser.add_argument("--input_file", "-i", type=str, default="averaged.lmp",  help="input .lmp file")
-parser.add_argument("--atom_num_per_layer", "-n", type=int, default=32,  help="number of atoms per layer in perfect structure")
+parser.add_argument("--atom_num_per_layer", "-n", type=int, default=36,  help="number of atoms per layer in perfect structure")
 parser.add_argument("--isppv", "-ppv", default=False, action='store_true', help="Defualt: this is brg structure")
 
 args = parser.parse_args()
