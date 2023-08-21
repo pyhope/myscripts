@@ -17,7 +17,7 @@ rcParams['ytick.direction'] = 'in'
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str, help="input file")
 parser.add_argument("--atom","-a",type = int, default = 1, help="The atom to analyze")
-parser.add_argument("--timestep","-ts",type = int, default = 1, help="timestep")
+# parser.add_argument("--timestep","-ts",type = int, default = 1, help="timestep")
 
 args   = parser.parse_args()
 dim = ['x', 'y', 'z']
@@ -36,13 +36,13 @@ pos = np.array([posx, posy, posz])
 
 
 np.savetxt('pos.txt', pos.T, header='    '.join(dim), fmt = '%2.5f')
-plt.figure(figsize=(8, 6), dpi=300)
+# plt.figure(figsize=(8, 6), dpi=300)
 
-for i in range(len(dim)):
-    x = np.array(list(range(len(pos[i]))))*args.timestep
-    plt.plot(x, pos[i], label=dim[i])
+# for i in range(len(dim)):
+#     x = np.array(list(range(len(pos[i]))))*args.timestep
+#     plt.plot(x, pos[i], label=dim[i])
 
-plt.xlabel('time (fs)')
-plt.ylabel('Position (A)')
-plt.legend(fancybox=False, edgecolor='black')
-plt.savefig('pos.png',bbox_inches='tight')
+# plt.xlabel('time (fs)')
+# plt.ylabel('Position (A)')
+# plt.legend(fancybox=False, edgecolor='black')
+# plt.savefig('pos.png',bbox_inches='tight')
