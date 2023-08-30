@@ -14,11 +14,15 @@ parser = argparse.ArgumentParser(description="Plot contents from lammps log file
 parser.add_argument("-i", "--input_file", type=str, default="log.lammps",  help="LAMMPS output file")
 parser.add_argument("-o", "--out_figure",type=str,default='props.jpg', help="Out figure name")
 parser.add_argument("-n", "--step_number",type=int,default=10, help="Plot every this number of time steps")
+parser.add_argument("-bs", "--begin_step",type=int,default=0, help="Begin time step")
+parser.add_argument("-es", "--end_step",type=int,default=-1, help="End time step")
 args = parser.parse_args()
 
 log = lammps_logfile.File(args.input_file)
 f = args.out_figure
 n = args.step_number
+begin = args.begin_step
+end = args.end_step
 
 fig, ax = plt.subplots(4,1,figsize=(12,20),sharex=True)
 fig.subplots_adjust(hspace=0.10)
@@ -32,7 +36,7 @@ for index, i in enumerate(["Temp", "Press", "PotEng", "TotEng"]):
     avgy = np.mean(y)
     if i == "Temp":
         avg_t = avgy
-    ax[index].plot(x[::n], y[::n])
+    ax[index].plot(x[begin:end:n], y[begin:end:n])
     ax[index].axhline(avgy, c = 'k', ls = '--', alpha = 0.7)
     ax[index].set_title(i + ' = ' + "%.2f" % (avgy))
     ax[index].set_ylabel(i)
