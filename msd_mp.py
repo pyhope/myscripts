@@ -10,6 +10,8 @@ import MDAnalysis as mda
 import matplotlib.pyplot as plt
 import argparse
 import glob
+import multiprocessing
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str,help="input file")
@@ -96,7 +98,15 @@ if not (args.eles):
     ele_sel = eles
 else:
     ele_sel = args.eles.split('-')
-    
+
+def task(i):
+    r = unwrap(i)
+    data_x = msd_straight_forward(r)[0]
+    data_y = msd_straight_forward(r)[1]
+    data_z = msd_straight_forward(r)[2]
+    return data_x, data_y, data_z
+
+cores = int(os.getenv('SLURM_CPUS_PER_TASK'))
 for ele in ele_sel:
     if not args.region:
         idx = u_md.select_atoms('type %s' % (ele)).indices
@@ -108,12 +118,12 @@ for ele in ele_sel:
     tmpx = np.zeros(len(u_md.trajectory))
     tmpy = np.zeros(len(u_md.trajectory))
     tmpz = np.zeros(len(u_md.trajectory))
-    for i in idx:
-        r    = unwrap(i)
-#        tmp += msd_fft(r)
-        tmpx += msd_straight_forward(r)[0]
-        tmpy += msd_straight_forward(r)[1]
-        tmpz += msd_straight_forward(r)[2]
+    with multiprocessing.Pool(cores) as pool:
+        results = pool.map(task, idx)
+    for result in results:
+        tmpx += result[0]
+        tmpy += result[1]
+        tmpz += result[2]
     msdx.append(tmpx/len(idx))
     msdy.append(tmpy/len(idx))
     msdz.append(tmpz/len(idx))

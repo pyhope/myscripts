@@ -9,7 +9,8 @@ import argparse
 parser = argparse.ArgumentParser(description="Calculate the antisite defect concentration")
 parser.add_argument("--input_file", "-i", type=str, default="averaged.lmp",  help="input .lmp file")
 parser.add_argument("--atom_num_per_layer", "-n", type=int, default=36,  help="number of atoms per layer in perfect structure")
-parser.add_argument("--isppv", "-ppv", default=False, action='store_true', help="Defualt: this is brg structure")
+parser.add_argument("--isppv", "-ppv", default=False, action='store_true', help="xxx")
+parser.add_argument("--isppv2", "-ppv2", default=False, action='store_true', help="xxx")
 
 args = parser.parse_args()
 atom_num_per_layer_perfect = args.atom_num_per_layer
@@ -40,6 +41,9 @@ df = pd.DataFrame({"Index": [i for i in range(1, len(frame) + 1)], "Type": frame
 if args.isppv:
     df = df.loc[((df.Type == "Mg") | (df.Type == "Si"))]
     atom_num_per_layer_perfect = 72
+elif args.isppv2:
+    df = df.loc[((df.Type == "Mg") | (df.Type == "Si"))]
+    atom_num_per_layer_perfect = 36
 else:
     df = df.loc[(df.X > 12) & ((df.Type == "Mg") | (df.Type == "Si"))]
 
