@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Oct  9 12:25:43 2020
-## msd direct is wrong with unwrapping
-@author: jiedeng
-"""
+
+import time
+start_time = time.time()
+formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
+print('Program starts at: ', formatted_time)
+print("Loading modules ...")
 import numpy as np
 import MDAnalysis as mda
 import matplotlib.pyplot as plt
@@ -12,6 +13,8 @@ import argparse
 import glob
 import multiprocessing
 import os
+module_time = time.time()
+print("End after %.2f s" % (module_time - start_time))
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str,help="input file")
@@ -36,7 +39,6 @@ def unwrap(idx):
             newcoords.append(un_i1 + wr_i - wr_i1 - tmp)
             
     return np.array(newcoords)
-
 
 def autocorrFFT(x):
     N=len(x)
@@ -73,6 +75,14 @@ def msd_straight_forward(r):
 
     return msdsx, msdsy, msdsz
 
+def task(i):
+    r = unwrap(i)
+    data_x = msd_straight_forward(r)[0]
+    data_y = msd_straight_forward(r)[1]
+    data_z = msd_straight_forward(r)[2]
+    print(i, end=' ')
+    return data_x, data_y, data_z
+
 if args.file:
     file = args.file
 else:
@@ -81,32 +91,32 @@ else:
     file = files[0]
     print("Find {0}; analyze {1}".format(files,file))
 
-#file = '/Users/jiedeng/Documents/ml/deepmd-kit/my_example/6k/tmp/r1/20/mgsio3.dump'
-u_md = mda.Universe(file,format=args.format)
+print("Loading dump file ...")
+u_md = mda.Universe(file, format=args.format)
+loading_time = time.time()
+print("End after %.2f s" % (loading_time - module_time))
+
+print("Transferring to memory ...")
 u_md.transfer_to_memory()
+transfer_time = time.time()
+print("End after %.2f s" % (transfer_time - loading_time))
+
 frames = u_md.trajectory
 box    = frames[0].dimensions[0:3]
 
+print("Calculating MSD ...")
+cores = int(os.getenv('SLURM_CPUS_PER_TASK'))
+print('Number of CPU cores', cores)
+msdx, msdy, msdz = [], [], []
 eles = []
 for atom in u_md.atoms.types:
     if not (atom in eles):
         eles.append(atom)
-
 # find unique elements
-msdx, msdy, msdz = [], [], []
 if not (args.eles):
     ele_sel = eles
 else:
     ele_sel = args.eles.split('-')
-
-def task(i):
-    r = unwrap(i)
-    data_x = msd_straight_forward(r)[0]
-    data_y = msd_straight_forward(r)[1]
-    data_z = msd_straight_forward(r)[2]
-    return data_x, data_y, data_z
-
-cores = int(os.getenv('SLURM_CPUS_PER_TASK'))
 for ele in ele_sel:
     if not args.region:
         idx = u_md.select_atoms('type %s' % (ele)).indices
@@ -114,7 +124,8 @@ for ele in ele_sel:
         lower, upper = args.region.split('-')
         u_npt = mda.Universe('../npt.lmp', format='DATA', atom_style='id type q x y z')
         idx = u_npt.select_atoms('type %s and prop y > %s and prop y < %s' % (ele, lower, upper)).indices
-    print(ele, idx)
+    print('Elements:', ele)
+    print('Number of atoms:',len(idx))
     tmpx = np.zeros(len(u_md.trajectory))
     tmpy = np.zeros(len(u_md.trajectory))
     tmpz = np.zeros(len(u_md.trajectory))
@@ -128,13 +139,20 @@ for ele in ele_sel:
     msdy.append(tmpy/len(idx))
     msdz.append(tmpz/len(idx))
 
-print("start ")
-np.savetxt("msd_x.txt", np.array(msdx).T, header='    '.join(ele_sel), fmt = '%2.6f')
-np.savetxt("msd_y.txt", np.array(msdy).T, header='    '.join(ele_sel), fmt = '%2.6f')
-np.savetxt("msd_z.txt", np.array(msdz).T, header='    '.join(ele_sel), fmt = '%2.6f')
-np.savetxt("msd_fft.txt", np.array(msdx + msdy + msdz).T, header='    '.join(ele_sel), fmt = '%2.6f')
-print("end saving ")
+calc_time = time.time()
+print()
+print("End after %.2f s" % (calc_time - transfer_time))
 
+print("Saving to file ...")
+x_arr, y_arr, z_arr = np.array(msdx).T, np.array(msdy).T, np.array(msdz).T
+np.savetxt("msd_x.txt", x_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+np.savetxt("msd_y.txt", y_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+np.savetxt("msd_z.txt", z_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+np.savetxt("msd_fft.txt", x_arr + y_arr + z_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+sf_time = time.time()
+print("End after %.2f s" % (sf_time - calc_time))
+
+print("Plotting ...")
 plt.figure(dpi=300)
 for i in range(len(ele_sel)):
     x = (np.array(list(range(len(msdx[i]))))*args.timestep)[1:]
@@ -142,10 +160,17 @@ for i in range(len(ele_sel)):
     plt.loglog(x,msdy[i][1:],label=eles[i]+', y')
     plt.loglog(x,msdz[i][1:],label=eles[i]+', z')
 plt.legend()
-#plt.ylim([1e-1,1e2])
 plt.xlabel('time (fs)')
 plt.ylabel('MSD (A$^2$)')
 plt.savefig("msd_xyz_log.png",bbox_inches='tight')
+plt.cla()
+for i in range(len(ele_sel)):
+    msd_bulk = msdx[i] + msdy[i] + msdz[i]
+    plt.loglog(x,msd_bulk[1:],label=eles[i], c='k')
+plt.legend()
+plt.xlabel('time (fs)')
+plt.ylabel('MSD (A$^2$)')
+plt.savefig("msd_log.png",bbox_inches='tight')
 
 plt.close()
 plt.figure(dpi=300)
@@ -154,7 +179,17 @@ for i in range(len(ele_sel)):
     plt.plot(x,msdy[i][1:], label=eles[i]+', y')
     plt.plot(x,msdz[i][1:], label=eles[i]+', z')
 plt.legend()
-#plt.ylim([1e-1,1e2])
 plt.xlabel('time (fs)')
 plt.ylabel('MSD (A$^2$)')
 plt.savefig("msd_xyz.png",bbox_inches='tight')
+plt.cla()
+for i in range(len(ele_sel)):
+    msd_bulk = msdx[i] + msdy[i] + msdz[i]
+    plt.plot(x,msd_bulk[1:],label=eles[i], c='k')
+plt.legend()
+plt.xlabel('time (fs)')
+plt.ylabel('MSD (A$^2$)')
+plt.savefig("msd.png",bbox_inches='tight')
+
+plot_time = time.time()
+print("End after %.2f s" % (plot_time - sf_time))

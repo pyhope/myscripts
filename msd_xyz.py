@@ -119,10 +119,11 @@ for ele in ele_sel:
     msdz.append(tmpz/len(idx))
 
 print("start ")
-np.savetxt("msd_x.txt", np.array(msdx).T, header='    '.join(ele_sel), fmt = '%2.6f')
-np.savetxt("msd_y.txt", np.array(msdy).T, header='    '.join(ele_sel), fmt = '%2.6f')
-np.savetxt("msd_z.txt", np.array(msdz).T, header='    '.join(ele_sel), fmt = '%2.6f')
-np.savetxt("msd_fft.txt", np.array(msdx + msdy + msdz).T, header='    '.join(ele_sel), fmt = '%2.6f')
+x_arr, y_arr, z_arr = np.array(msdx).T, np.array(msdy).T, np.array(msdz).T
+np.savetxt("msd_x.txt", x_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+np.savetxt("msd_y.txt", y_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+np.savetxt("msd_z.txt", z_arr, header='    '.join(ele_sel), fmt = '%2.6f')
+np.savetxt("msd_fft.txt", x_arr + y_arr + z_arr, header='    '.join(ele_sel), fmt = '%2.6f')
 print("end saving ")
 
 plt.figure(dpi=300)
