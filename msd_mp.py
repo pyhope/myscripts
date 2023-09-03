@@ -124,6 +124,7 @@ for ele in ele_sel:
         lower, upper = args.region.split('-')
         u_npt = mda.Universe('../npt.lmp', format='DATA', atom_style='id type q x y z')
         idx = u_npt.select_atoms('type %s and prop y > %s and prop y < %s' % (ele, lower, upper)).indices
+    print()
     print('Elements:', ele)
     print('Number of atoms:',len(idx))
     tmpx = np.zeros(len(u_md.trajectory))
