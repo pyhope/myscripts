@@ -48,7 +48,7 @@ else:
     df = df.loc[(df.X > 12) & ((df.Type == "Mg") | (df.Type == "Si"))]
 
 df.sort_values(by=["Z"], inplace=True, ignore_index=True)
-df.to_csv("sorted.csv")
+#df.to_csv("sorted.csv")
 
 z_np = df.Z.to_numpy()
 dz_np_sorted = np.sort(z_np[1:] - z_np[:-1])
