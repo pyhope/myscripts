@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+if [ -z $4 ]; then
+    echo Missing parameters!
+    exit 1
+fi
+
+WDIR=$(pwd)
+step=$3
+start_frame=$1
+end_frame=$2
+group_size=$4
+
+mkdir analysis
+cd analysis
+mkdir frames
+cd frames
+extract_frames -i $WDIR/npt.dump -tb $start_frame -te $end_frame
+cd ..
+
+for group_start in $(seq $start_frame $(($group_size * $step)) $end_frame); do
+    mkdir "$group_start"
+    group_end=$(($group_start + $step * ($group_size - 1)))
+    for file_num in $(seq $group_start $step $group_end); do
+        mv "frames/${file_num}.dump" "$group_start/"
+    done
+done
+
+rm -rf frames
+
+for dir in $(seq $start_frame $(($group_size * $step)) $end_frame); do
+    cd "$dir"
+    ls *.dump > list.lst
+    atomsk --average list.lst averaged.lmp
+    rm *.dump list.lst
+    defect_analysis.py -ppv
+    echo -n "$dir " >> $WDIR/antisite_defect_ratio.txt
+    cat antisite_defect_ratio.txt >> $WDIR/antisite_defect_ratio.txt
+    echo >> $WDIR/antisite_defect_ratio.txt
+    cd ..
+done
