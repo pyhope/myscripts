@@ -175,5 +175,13 @@ for f_index, frame in enumerate(frames):
     info.write("Antisite defect ratio: %f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect)))
     info.write("\n")
 
+    if len(abnormal_layers) > 0:
+        with open("abnormal_layers.txt", "w") as abnormal:
+            abnormal.write('frame %d: ' % f_index + str(abnormal_layers) + '\n')
+
     antisite.write("%f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect)))
     interstitial.write("%f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect)))
+
+info.close()
+antisite.close()
+interstitial.close()
