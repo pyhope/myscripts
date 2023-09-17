@@ -146,6 +146,7 @@ def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
 
     info_string = ""
     info_string += "frame %d:\n" % f_index
+    info_string += "Z length: %f\n" % z_length
     info_string += "Total number of layers: %d\n" % len(layers)
     info_string += "# of interstitial atoms: %d\n" % interstitial_atoms_count
     info_string += "Abnormal layers: " + str(abnormal_layers) + '\n'
