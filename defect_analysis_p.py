@@ -132,16 +132,6 @@ def process_frame(frame, atom_types):
             total_Mg_perfect += atom_num_per_layer_perfect
             Si_in_Mg_layer += Si_num
 
-    print("Total number of Si atoms in perfect structure:", total_Si_perfect)
-    print("Total number of Mg atoms in perfect structure:", total_Mg_perfect)
-    print("# of Mg in Si layer:", Mg_in_Si_layer)
-    print("# of Si in Mg layer:", Si_in_Mg_layer)
-    print("# of vacancies of Si:", interstitial_Si_count)
-    print("# of vacancies of Mg:", interstitial_Mg_count)
-    print("Interstitial defect ratio = vacancy defect ratio =", interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect))
-    print("Antisite defect ratio:", (Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect))
-    print()
-
     info_string = ""
     info_string += "frame %d:\n" % frame['Index']
     info_string += "Z length: %f\n" % z_length
@@ -187,6 +177,7 @@ if __name__ == "__main__":
     antisite = open("antisite_defect_ratio.txt", "w")
     interstitial = open("interstitial_defect_ratio.txt", "w")
     info = open("info.txt", "w")
+    abnormal = open("abnormal_layers.txt", "w")
     if cores := os.getenv('SLURM_CPUS_PER_TASK'):
         cores = int(cores)
     else:
@@ -199,9 +190,9 @@ if __name__ == "__main__":
         antisite.write(result["antisite"])
         interstitial.write(result["interstitial"])
         if result["abnormal_layers"]:
-            with open("abnormal_layers.txt", "a") as abnormal:
-                abnormal.write(result["abnormal_layers"])
+            abnormal.write(result["abnormal_layers"])
     print('# of CPU cores:', cores)
     info.close()
     antisite.close()
     interstitial.close()
+    abnormal.close()
