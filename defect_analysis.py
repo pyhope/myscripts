@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from ase.io import read
+import MDAnalysis as mda
 import pandas as pd
 import numpy as np
 import argparse
@@ -29,39 +29,21 @@ def handle_excess_layer(layer, df, dz_dynamic):
         sub_layers.append(current_sub_layer)
     return sub_layers
 
-frames = read(args.input_file, index=':', format="lammps-dump-text")
+MD_data = mda.Universe(args.input_file, format='LAMMPSDUMP')
+MD_data.transfer_to_memory()
+frames = MD_data.trajectory
 antisite = open("antisite_defect_ratio.txt", "w")
 interstitial = open("interstitial_defect_ratio.txt", "w")
 info = open("info.txt", "w")
 
 for f_index, frame in enumerate(frames):
     print("frame %d:" % f_index)
-    chemical_symbols = []
 
-    for atom in frame:
-        if atom.symbol == 'H':
-            chemical_symbols.append('Mg')
-        elif atom.symbol == 'He':
-            chemical_symbols.append('Si')
-        elif atom.symbol == 'Li':
-            chemical_symbols.append('O')
-
-    frame.set_chemical_symbols(chemical_symbols)
-
-    x_lst = []
-    y_lst = []
-    z_lst = []
-    for atom in frame.positions:
-        x_lst.append(atom[0])
-        y_lst.append(atom[1])
-        z_lst.append(atom[2])
-
-    df = pd.DataFrame({"Index": [i for i in range(1, len(frame) + 1)], "Type": frame.get_chemical_symbols(), "X": x_lst, "Y": y_lst, "Z": z_lst})
-
-    df = df.loc[(df.Type == "Mg") | (df.Type == "Si")]
+    df = pd.DataFrame({"Index": list(range(1, len(frame) + 1)), "Type": MD_data.atoms.types, "X": frame.positions[:,0], "Y": frame.positions[:,1], "Z": frame.positions[:,2]})
+    # df.to_csv("frame_%d.csv" % f_index)
+    df = df.loc[(df.Type == "1") | (df.Type == "2")]
 
     df.sort_values(by=["Z"], inplace=True, ignore_index=True)
-    #df.to_csv("sorted.csv")
 
     z_np = df.Z.to_numpy()
     dz_np_sorted = np.sort(z_np[1:] - z_np[:-1])
@@ -71,6 +53,17 @@ for f_index, frame in enumerate(frames):
     dz_thres = (dz_np_sorted[ddz_max_index + 1] + dz_np_sorted[ddz_max_index] * 1.414) / 2.414
     print("dz_thres:", dz_thres)
 
+    # Handle periodic boundary condition
+    z_length = frame.dimensions[2]
+    prev_z = None
+    for index, row in df.iterrows():
+        if index > atom_num_per_layer_perfect and row['Z'] - prev_z > dz_thres:
+            df.loc[df['Z'] < row['Z'], 'Z'] += z_length
+            break
+        prev_z = row['Z']
+    df.sort_values(by=["Z"], inplace=True, ignore_index=True)
+    
+    # Layer definition
     layers = []
 
     df_iter = df.iterrows()
@@ -84,12 +77,6 @@ for f_index, frame in enumerate(frames):
     if current_layer:
         layers.append(current_layer)
 
-    # Merge first and last layer if they are actually the same layer due to periodic boundary condition
-    first_land_last_layer = len(layers[0]) + len(layers[-1])
-    if atom_num_per_layer_perfect * 0.8 < first_land_last_layer < atom_num_per_layer_perfect * 1.2:
-        layers[0] += layers[-1]
-        layers.pop()
-
     # Handle excess layers
     interstitial_Si_count = 0
     interstitial_Mg_count = 0
@@ -99,16 +86,16 @@ for f_index, frame in enumerate(frames):
         atom_num_per_layer = len(layer)
         if atom_num_per_layer < atom_num_per_layer_perfect * 0.4:
             types_in_layer = df.loc[layer, "Type"].values
-            interstitial_Si_count += np.sum(types_in_layer == "Si")
-            interstitial_Mg_count += np.sum(types_in_layer == "Mg")
+            interstitial_Si_count += np.sum(types_in_layer == "2")
+            interstitial_Mg_count += np.sum(types_in_layer == "1")
             print("Interstitial atoms at Z =" , df.loc[layer[0], "Z"], "with", atom_num_per_layer, "atoms!")
         elif atom_num_per_layer > atom_num_per_layer_perfect * 1.5:
             sub_layers = handle_excess_layer(layer, df, dz_thres * 0.5)
             for sub_layer in sub_layers:
                 if len(sub_layer) < atom_num_per_layer_perfect * 0.4:
                     types_in_layer = df.loc[sub_layer, "Type"].values
-                    interstitial_Si_count += np.sum(types_in_layer == "Si")
-                    interstitial_Mg_count += np.sum(types_in_layer == "Mg")
+                    interstitial_Si_count += np.sum(types_in_layer == "2")
+                    interstitial_Mg_count += np.sum(types_in_layer == "1")
                     print("Interstitial atoms at Z =" , df.loc[sub_layer[0], "Z"], "with", len(sub_layer), "atoms!")
                 else:
                     adjusted_layers.append(sub_layer)
@@ -140,9 +127,9 @@ for f_index, frame in enumerate(frames):
         Si_num = 0
         Mg_num = 0
         for id in layer:
-            if df.loc[id, "Type"] == "Si":
+            if df.loc[id, "Type"] == "2":
                 Si_num += 1
-            elif df.loc[id, "Type"] == "Mg":
+            elif df.loc[id, "Type"] == "1":
                 Mg_num += 1
         if Si_num > Mg_num:
             total_Si_perfect += atom_num_per_layer_perfect

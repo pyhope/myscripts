@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from ase.io import read
+import MDAnalysis as mda
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool, cpu_count
@@ -31,36 +31,12 @@ def handle_excess_layer(layer, df, dz_dynamic):
         sub_layers.append(current_sub_layer)
     return sub_layers
 
-frames = read(args.input_file, index=':', format="lammps-dump-text")
-antisite = open("antisite_defect_ratio.txt", "w")
-interstitial = open("interstitial_defect_ratio.txt", "w")
-info = open("info.txt", "w")
-
-def process_frame(f_index, frame, atom_num_per_layer_perfect):
+def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
     print("frame %d:" % f_index)
-    chemical_symbols = []
 
-    for atom in frame:
-        if atom.symbol == 'H':
-            chemical_symbols.append('Mg')
-        elif atom.symbol == 'He':
-            chemical_symbols.append('Si')
-        elif atom.symbol == 'Li':
-            chemical_symbols.append('O')
+    df = pd.DataFrame({"Index": list(range(1, len(frame) + 1)), "Type": atom_types, "X": frame.positions[:,0], "Y": frame.positions[:,1], "Z": frame.positions[:,2]})
 
-    frame.set_chemical_symbols(chemical_symbols)
-
-    x_lst = []
-    y_lst = []
-    z_lst = []
-    for atom in frame.positions:
-        x_lst.append(atom[0])
-        y_lst.append(atom[1])
-        z_lst.append(atom[2])
-
-    df = pd.DataFrame({"Index": [i for i in range(1, len(frame) + 1)], "Type": frame.get_chemical_symbols(), "X": x_lst, "Y": y_lst, "Z": z_lst})
-
-    df = df.loc[(df.Type == "Mg") | (df.Type == "Si")]
+    df = df.loc[(df.Type == "1") | (df.Type == "2")]
 
     df.sort_values(by=["Z"], inplace=True, ignore_index=True)
     #df.to_csv("sorted.csv")
@@ -73,6 +49,17 @@ def process_frame(f_index, frame, atom_num_per_layer_perfect):
     dz_thres = (dz_np_sorted[ddz_max_index + 1] + dz_np_sorted[ddz_max_index] * 1.414) / 2.414
     print("dz_thres:", dz_thres)
 
+    # Handle periodic boundary condition
+    z_length = frame.dimensions[2]
+    prev_z = None
+    for index, row in df.iterrows():
+        if index > atom_num_per_layer_perfect and row['Z'] - prev_z > dz_thres:
+            df.loc[df['Z'] < row['Z'], 'Z'] += z_length
+            break
+        prev_z = row['Z']
+    df.sort_values(by=["Z"], inplace=True, ignore_index=True)
+    
+    # Layer definition
     layers = []
 
     df_iter = df.iterrows()
@@ -86,12 +73,6 @@ def process_frame(f_index, frame, atom_num_per_layer_perfect):
     if current_layer:
         layers.append(current_layer)
 
-    # Merge first and last layer if they are actually the same layer due to periodic boundary condition
-    first_land_last_layer = len(layers[0]) + len(layers[-1])
-    if atom_num_per_layer_perfect * 0.8 < first_land_last_layer < atom_num_per_layer_perfect * 1.2:
-        layers[0] += layers[-1]
-        layers.pop()
-
     # Handle excess layers
     interstitial_Si_count = 0
     interstitial_Mg_count = 0
@@ -101,16 +82,16 @@ def process_frame(f_index, frame, atom_num_per_layer_perfect):
         atom_num_per_layer = len(layer)
         if atom_num_per_layer < atom_num_per_layer_perfect * 0.4:
             types_in_layer = df.loc[layer, "Type"].values
-            interstitial_Si_count += np.sum(types_in_layer == "Si")
-            interstitial_Mg_count += np.sum(types_in_layer == "Mg")
+            interstitial_Si_count += np.sum(types_in_layer == "2")
+            interstitial_Mg_count += np.sum(types_in_layer == "1")
             print("Interstitial atoms at Z =" , df.loc[layer[0], "Z"], "with", atom_num_per_layer, "atoms!")
         elif atom_num_per_layer > atom_num_per_layer_perfect * 1.5:
             sub_layers = handle_excess_layer(layer, df, dz_thres * 0.5)
             for sub_layer in sub_layers:
                 if len(sub_layer) < atom_num_per_layer_perfect * 0.4:
                     types_in_layer = df.loc[sub_layer, "Type"].values
-                    interstitial_Si_count += np.sum(types_in_layer == "Si")
-                    interstitial_Mg_count += np.sum(types_in_layer == "Mg")
+                    interstitial_Si_count += np.sum(types_in_layer == "2")
+                    interstitial_Mg_count += np.sum(types_in_layer == "1")
                     print("Interstitial atoms at Z =" , df.loc[sub_layer[0], "Z"], "with", len(sub_layer), "atoms!")
                 else:
                     adjusted_layers.append(sub_layer)
@@ -142,9 +123,9 @@ def process_frame(f_index, frame, atom_num_per_layer_perfect):
         Si_num = 0
         Mg_num = 0
         for id in layer:
-            if df.loc[id, "Type"] == "Si":
+            if df.loc[id, "Type"] == "2":
                 Si_num += 1
-            elif df.loc[id, "Type"] == "Mg":
+            elif df.loc[id, "Type"] == "1":
                 Mg_num += 1
         if Si_num > Mg_num:
             total_Si_perfect += atom_num_per_layer_perfect
@@ -179,7 +160,7 @@ def process_frame(f_index, frame, atom_num_per_layer_perfect):
     info_string += "\n"
     antisite_value = "%f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect))
     interstitial_value = "%f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect))
-    abnormal_layers_values = 'frame %d: ' % f_index + str(abnormal_layers) + '\n'
+    abnormal_layers_values = 'frame %d: ' % f_index + str(abnormal_layers) + '\n' if abnormal_layers else None
 
     return {
         "info": info_string, 
@@ -189,18 +170,25 @@ def process_frame(f_index, frame, atom_num_per_layer_perfect):
     }
 
 if __name__ == "__main__":
+    MD_data = mda.Universe(args.input_file, format='LAMMPSDUMP')
+    MD_data.transfer_to_memory()
+    atom_types = MD_data.atoms.types
+    frames = MD_data.trajectory
+    antisite = open("antisite_defect_ratio.txt", "w")
+    interstitial = open("interstitial_defect_ratio.txt", "w")
+    info = open("info.txt", "w")
     if cores := os.getenv('SLURM_CPUS_PER_TASK'):
-        pass
+        cores = int(cores)
     else:
         cores = cpu_count()
     with Pool(cores) as p:
-        results = p.starmap(process_frame, [(f_index, frame, atom_num_per_layer_perfect) for f_index, frame in enumerate(frames)])
+        results = p.starmap(process_frame, [(f_index, frame, atom_types, atom_num_per_layer_perfect) for f_index, frame in enumerate(frames)])
 
     for result in results:
         info.write(result["info"])
         antisite.write(result["antisite"])
         interstitial.write(result["interstitial"])
-        if len(result["abnormal_layers"]) > 0:
+        if result["abnormal_layers"]:
             with open("abnormal_layers.txt", "a") as abnormal:
                 abnormal.write(result["abnormal_layers"])
     print('# of CPU cores:', cores)

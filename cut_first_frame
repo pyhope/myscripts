@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 input_dump_file output_file"
+    exit 1
+fi
+
+input_file="$1"
+output_file="$2"
+
+start_line=$(grep -n "^ITEM: TIMESTEP" "$input_file" | awk -F: 'NR==2 {print $1}')
+
+if [[ -z "$start_line" ]]; then
+    cp "$input_file" "$output_file"
+else
+    sed -n "${start_line},\$p" "$input_file" > "$output_file"
+fi
