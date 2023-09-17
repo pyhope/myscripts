@@ -29,7 +29,7 @@ def handle_excess_layer(layer, df, dz_dynamic):
         sub_layers.append(current_sub_layer)
     return sub_layers
 
-frames = read("selected.dump", index=':', format="lammps-dump-text")
+frames = read(args.input_file, index=':', format="lammps-dump-text")
 antisite = open("antisite_defect_ratio.txt", "w")
 interstitial = open("interstitial_defect_ratio.txt", "w")
 info = open("info.txt", "w")
