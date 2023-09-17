@@ -4,6 +4,8 @@
 from ase.io import read
 import pandas as pd
 import numpy as np
+from multiprocessing import Pool, cpu_count
+import os
 import argparse
 
 parser = argparse.ArgumentParser(description="Analyze the defects and calculate the defect concentration")
@@ -34,7 +36,7 @@ antisite = open("antisite_defect_ratio.txt", "w")
 interstitial = open("interstitial_defect_ratio.txt", "w")
 info = open("info.txt", "w")
 
-for f_index, frame in enumerate(frames):
+def process_frame(f_index, frame, atom_num_per_layer_perfect):
     print("frame %d:" % f_index)
     chemical_symbols = []
 
@@ -161,27 +163,47 @@ for f_index, frame in enumerate(frames):
     print("Antisite defect ratio:", (Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect))
     print()
 
-    info.write("frame %d:\n" % f_index)
-    info.write("Total number of layers: %d\n" % len(layers))
-    info.write("# of interstitial atoms: %d\n" % interstitial_atoms_count)
-    info.write("Abnormal layers: " + str(abnormal_layers) + '\n')
-    info.write("# of Si in perfect structure: %d\n" % total_Si_perfect)
-    info.write("# of Mg in perfect structure: %d\n" % total_Mg_perfect)
-    info.write("# of Mg in Si layer: %d\n" % Mg_in_Si_layer)
-    info.write("# of Si in Mg layer: %d\n" % Si_in_Mg_layer)
-    info.write("# of vacancies of Si: %d\n" % interstitial_Si_count)
-    info.write("# of vacancies of Mg: %d\n" % interstitial_Mg_count)
-    info.write("Interstitial defect ratio = vacancy defect ratio = %f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect)))
-    info.write("Antisite defect ratio: %f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect)))
-    info.write("\n")
+    info_string = ""
+    info_string += "frame %d:\n" % f_index
+    info_string += "Total number of layers: %d\n" % len(layers)
+    info_string += "# of interstitial atoms: %d\n" % interstitial_atoms_count
+    info_string += "Abnormal layers: " + str(abnormal_layers) + '\n'
+    info_string += "# of Si in perfect structure: %d\n" % total_Si_perfect
+    info_string += "# of Mg in perfect structure: %d\n" % total_Mg_perfect
+    info_string += "# of Mg in Si layer: %d\n" % Mg_in_Si_layer
+    info_string += "# of Si in Mg layer: %d\n" % Si_in_Mg_layer
+    info_string += "# of vacancies of Si: %d\n" % interstitial_Si_count
+    info_string += "# of vacancies of Mg: %d\n" % interstitial_Mg_count
+    info_string += "Interstitial defect ratio = vacancy defect ratio = %f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect))
+    info_string += "Antisite defect ratio: %f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect))
+    info_string += "\n"
+    antisite_value = "%f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect))
+    interstitial_value = "%f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect))
+    abnormal_layers_values = 'frame %d: ' % f_index + str(abnormal_layers) + '\n'
 
-    if len(abnormal_layers) > 0:
-        with open("abnormal_layers.txt", "w") as abnormal:
-            abnormal.write('frame %d: ' % f_index + str(abnormal_layers) + '\n')
+    return {
+        "info": info_string, 
+        "antisite": antisite_value, 
+        "interstitial": interstitial_value,
+        "abnormal_layers": abnormal_layers_values
+    }
 
-    antisite.write("%f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect)))
-    interstitial.write("%f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect)))
+if __name__ == "__main__":
+    if cores := os.getenv('SLURM_CPUS_PER_TASK'):
+        pass
+    else:
+        cores = cpu_count()
+    with Pool(cores) as p:
+        results = p.starmap(process_frame, [(f_index, frame, atom_num_per_layer_perfect) for f_index, frame in enumerate(frames)])
 
-info.close()
-antisite.close()
-interstitial.close()
+    for result in results:
+        info.write(result["info"])
+        antisite.write(result["antisite"])
+        interstitial.write(result["interstitial"])
+        if len(result["abnormal_layers"]) > 0:
+            with open("abnormal_layers.txt", "a") as abnormal:
+                abnormal.write(result["abnormal_layers"])
+    print('# of CPU cores:', cores)
+    info.close()
+    antisite.close()
+    interstitial.close()
