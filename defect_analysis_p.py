@@ -13,7 +13,6 @@ parser.add_argument("--input_file", "-i", type=str, default="selected.dump",  he
 parser.add_argument("--atom_num_per_layer", "-n", type=int, default=72,  help="number of atoms per layer in perfect structure")
 
 args = parser.parse_args()
-atom_num_per_layer_perfect = args.atom_num_per_layer
 
 def handle_excess_layer(layer, df, dz_dynamic):
     print("Excess layer with %d atoms!" % len(layer))
@@ -31,15 +30,14 @@ def handle_excess_layer(layer, df, dz_dynamic):
         sub_layers.append(current_sub_layer)
     return sub_layers
 
-def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
-    print("frame %d:" % f_index)
-
-    df = pd.DataFrame({"Index": list(range(1, len(frame) + 1)), "Type": atom_types, "X": frame.positions[:,0], "Y": frame.positions[:,1], "Z": frame.positions[:,2]})
+def process_frame(frame, atom_types):
+    atom_num_per_layer_perfect = args.atom_num_per_layer
+    print("frame %d:" % frame['Index'])
+    df = pd.DataFrame({"Index": list(range(1, len(frame['X']) + 1)), "Type": atom_types, "X": frame['X'], "Y": frame['Y'], "Z": frame['Z']})
 
     df = df.loc[(df.Type == "1") | (df.Type == "2")]
 
     df.sort_values(by=["Z"], inplace=True, ignore_index=True)
-    #df.to_csv("sorted.csv")
 
     z_np = df.Z.to_numpy()
     dz_np_sorted = np.sort(z_np[1:] - z_np[:-1])
@@ -50,7 +48,7 @@ def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
     print("dz_thres:", dz_thres)
 
     # Handle periodic boundary condition
-    z_length = frame.dimensions[2]
+    z_length = frame['dimensions']
     prev_z = None
     for index, row in df.iterrows():
         if index > atom_num_per_layer_perfect and row['Z'] - prev_z > dz_thres:
@@ -117,7 +115,7 @@ def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
         if atom_num_per_layer > atom_num_per_layer_perfect * 1.2 or atom_num_per_layer < atom_num_per_layer_perfect * 0.8:
             print("Number of atoms in a layer is abnormal (%d), continue" % (atom_num_per_layer))
             abnormal_df = df.loc[layer]
-            abnormal_df.to_csv("frame_%d_atom_%d.csv" % (f_index, atom_num_per_layer))
+            abnormal_df.to_csv("frame_%d_atom_%d.csv" % (frame['Index'], atom_num_per_layer))
             abnormal_layers.append(atom_num_per_layer)
             continue
         Si_num = 0
@@ -145,7 +143,7 @@ def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
     print()
 
     info_string = ""
-    info_string += "frame %d:\n" % f_index
+    info_string += "frame %d:\n" % frame['Index']
     info_string += "Z length: %f\n" % z_length
     info_string += "Total number of layers: %d\n" % len(layers)
     info_string += "# of interstitial atoms: %d\n" % interstitial_atoms_count
@@ -161,7 +159,7 @@ def process_frame(f_index, frame, atom_types, atom_num_per_layer_perfect):
     info_string += "\n"
     antisite_value = "%f\n" % ((Mg_in_Si_layer + Si_in_Mg_layer) / (total_Si_perfect + total_Mg_perfect))
     interstitial_value = "%f\n" % (interstitial_atoms_count / (total_Si_perfect + total_Mg_perfect))
-    abnormal_layers_values = 'frame %d: ' % f_index + str(abnormal_layers) + '\n' if abnormal_layers else None
+    abnormal_layers_values = 'frame %d: ' % frame['Index'] + str(abnormal_layers) + '\n' if abnormal_layers else None
 
     return {
         "info": info_string, 
@@ -174,7 +172,18 @@ if __name__ == "__main__":
     MD_data = mda.Universe(args.input_file, format='LAMMPSDUMP')
     MD_data.transfer_to_memory()
     atom_types = MD_data.atoms.types
-    frames = MD_data.trajectory
+    
+    frame_list = [
+        {
+            "Index": f_index,
+            "X": frame.positions[:,0],
+            "Y": frame.positions[:,1],
+            "Z": frame.positions[:,2],
+            "dimensions": frame.dimensions[2]
+        }
+        for f_index, frame in enumerate(MD_data.trajectory)
+    ]
+
     antisite = open("antisite_defect_ratio.txt", "w")
     interstitial = open("interstitial_defect_ratio.txt", "w")
     info = open("info.txt", "w")
@@ -183,7 +192,7 @@ if __name__ == "__main__":
     else:
         cores = cpu_count()
     with Pool(cores) as p:
-        results = p.starmap(process_frame, [(f_index, frame, atom_types, atom_num_per_layer_perfect) for f_index, frame in enumerate(frames)])
+        results = p.starmap(process_frame, [(frame, atom_types) for frame in frame_list])
 
     for result in results:
         info.write(result["info"])
