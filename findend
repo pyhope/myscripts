@@ -3,6 +3,8 @@
 set -e
 
 WDIR=`pwd`
+> $WDIR/ENDSTEPS
+
 for i in $@
     do
     echo $i
