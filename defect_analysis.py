@@ -27,6 +27,9 @@ def handle_excess_layer(layer, df, dz_dynamic):
     if current_sub_layer:
         print("Define a sub-layer with %d atoms" % len(current_sub_layer))
         sub_layers.append(current_sub_layer)
+    for sub_layer in sub_layers:
+        if len(sub_layer) > args.atom_num_per_layer * 1.5:
+            return handle_excess_layer(layer, df, dz_dynamic * 0.8)
     return sub_layers
 
 MD_data = mda.Universe(args.input_file, format='LAMMPSDUMP')
