@@ -122,7 +122,7 @@ for ele in ele_sel:
         idx = u_md.select_atoms('type %s' % (ele)).indices
     else:
         lower, upper = args.region.split('-')
-        u_npt = mda.Universe('../npt.lmp', format='DATA', atom_style='id type q x y z')
+        u_npt = mda.Universe('./npt.lmp', format='DATA', atom_style='id type q x y z')
         idx = u_npt.select_atoms('type %s and prop y > %s and prop y < %s' % (ele, lower, upper)).indices
     print()
     print('Elements:', ele)
@@ -140,9 +140,10 @@ for ele in ele_sel:
     msdy.append(tmpy/len(idx))
     msdz.append(tmpz/len(idx))
 
-calc_time = time.time()
-print()
-print("End after %.2f s" % (calc_time - transfer_time))
+    calc_time = time.time()
+    print()
+    print("End after %.2f s" % (calc_time - transfer_time))
+    transfer_time = calc_time
 
 print("Saving to file ...")
 x_arr, y_arr, z_arr = np.array(msdx).T, np.array(msdy).T, np.array(msdz).T
