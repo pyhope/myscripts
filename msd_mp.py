@@ -22,6 +22,7 @@ parser.add_argument("--eles","-e",type = str, default = None, help="elements to 
 parser.add_argument("--region","-r",type=str, default = None, help="region of the atoms of interest (split with -, only consider y axis)")
 parser.add_argument("--format","-ft",type = str,default = 'LAMMPSDUMP', help="file format, e.g., LAMMPSDUMP, PDB")
 parser.add_argument("--timestep","-ts",type = int,default = 1, help="timestep")
+parser.add_argument("--nptfile","-nptf",type=str, default = './npt.lmp', help="npt.lmp file")
 
 args   = parser.parse_args()
 
@@ -122,7 +123,7 @@ for ele in ele_sel:
         idx = u_md.select_atoms('type %s' % (ele)).indices
     else:
         lower, upper = args.region.split('-')
-        u_npt = mda.Universe('./npt.lmp', format='DATA', atom_style='id type q x y z')
+        u_npt = mda.Universe(args.nptfile, format='DATA', atom_style='id type q x y z')
         idx = u_npt.select_atoms('type %s and prop y > %s and prop y < %s' % (ele, lower, upper)).indices
     print()
     print('Elements:', ele)
@@ -145,6 +146,7 @@ for ele in ele_sel:
     print("End after %.2f s" % (calc_time - transfer_time))
     transfer_time = calc_time
 
+print()
 print("Saving to file ...")
 x_arr, y_arr, z_arr = np.array(msdx).T, np.array(msdy).T, np.array(msdz).T
 np.savetxt("msd_x.txt", x_arr, header='    '.join(ele_sel), fmt = '%2.6f')
