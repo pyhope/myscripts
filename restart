@@ -34,10 +34,11 @@ cp run.slurm ../$New_dir
 cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/poly.restart.$max/}" > ../$New_dir/in.lammps
 cd ../$New_dir
 mkdir restart
-dirs=( ../*/ )
-if [ ${#dirs[@]} -eq 2 ]; then
-    echo "This is the first run. Please modify the in.lammps file and submit the job manually."
-else
-    sbatch run.slurm
-fi
+# dirs=( ../*/ )
+# if [ ${#dirs[@]} -eq 2 ]; then
+#     echo "This is the first run. Please modify the in.lammps file and submit the job manually."
+# else
+#     sbatch run.slurm
+# fi
+sbatch run.slurm
 unset step_list
