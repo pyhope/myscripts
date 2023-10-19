@@ -3,7 +3,7 @@
 
 import argparse
 
-parser = argparse.ArgumentParser(description="Convert LAMMPS dump file to POSCAR with velocities")
+parser = argparse.ArgumentParser(description="Filter LAMMPS log file")
 parser.add_argument("--input_file", "-i", type=str, default="log.lammps",  help="input log file")
 parser.add_argument("--output_file", "-o", type=str, default="filtered_output.txt",  help="output file")
 parser.add_argument("--beginstep","-tb",type=int, default=582800, help="target begin frame")
