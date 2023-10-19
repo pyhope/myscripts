@@ -27,5 +27,3 @@ with open(args.input_file, 'r') as infile, open(args.output_file, 'w') as outfil
                 outfile.write(f"{first_word} {words[1]}\n")
         except ValueError:
             continue
-
-pass
