@@ -4,6 +4,12 @@
 from dpdata import LabeledSystem
 import numpy as np
 import glob
+import argparse
+
+parser = argparse.ArgumentParser(description="Calculate the RMSE between VASP and NN forces")
+parser.add_argument("--input_directory", "-i", default = '.', type=str,  help="Input directory that contains OUTCAR and LAMMPS dump files")
+
+args = parser.parse_args()
 
 def extract_outcar(outcar):
     ls     = LabeledSystem(outcar,fmt='outcar') 
@@ -19,7 +25,7 @@ def extract_dump(dump):
                 # start of forces data
                 for j in range(i+1, len(lines)):
                     data = lines[j].split()
-                    fx, fy, fz = float(data[8]), float(data[9]), float(data[10])  # Divide by 1000 to convert to angstroms/femtosecond
+                    fx, fy, fz = float(data[8]), float(data[9]), float(data[10])
                     forces.append((fx, fy, fz))
     return np.array(forces)
 
@@ -35,11 +41,13 @@ def dev_vasp_nn(vasp, nn, natoms=161):
 
     return rmse_f
 
-path = '/scratch/gpfs/yp0007/project/diffusion/t2.5p25-81/en/582810/'
-forces_vasp = extract_outcar(path + 'OUTCAR')
-forces_nn = extract_dump(glob.glob(path + '*.dump')[0])
+path = args.input_directory
+forces_vasp = extract_outcar(path + '/OUTCAR')
+forces_nn = extract_dump(glob.glob(path + '/*.dump')[0])
 rmse = dev_vasp_nn(forces_vasp, forces_nn)
-print('rmse = ', rmse)
+print('RMSE = ', rmse)
+with open('RMSE_F', 'w') as f:
+    f.write(str(rmse))
 
 # np.savetxt('forces_vasp.txt', forces_vasp)
 # np.savetxt('forces_nn.txt', forces_nn)
