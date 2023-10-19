@@ -15,7 +15,7 @@ with open(args.input_file, 'r') as infile, open(args.output_file, 'w') as outfil
     for line in infile:
         words = line.split()
         
-        if not words:
+        if len(words) < 2:
             continue
 
         first_word = words[0]
@@ -24,6 +24,6 @@ with open(args.input_file, 'r') as infile, open(args.output_file, 'w') as outfil
             value = int(first_word)
             
             if args.beginstep <= value <= args.endstep:
-                outfile.write(line)
+                outfile.write(f"{first_word} {words[1]}\n")
         except ValueError:
             continue
