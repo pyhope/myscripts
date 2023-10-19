@@ -1,0 +1,23 @@
+#!/bin/bash
+
+output_file="output.txt"
+
+if [[ -e $output_file ]]; then
+    rm $output_file
+fi
+
+for dir in */; do
+    if [[ -e "${dir}/OUTCAR" ]]; then
+        toten_value=$(tac "${dir}/OUTCAR" | grep -m1 'TOTEN' | awk '{print $(NF-1)}')
+
+        vasp_nn_forces.py -i "${dir%/}"
+
+        if [[ -e "${dir}/RMSE_F" ]]; then
+            rmse_value=$(cat "${dir}/RMSE_F")
+        else
+            rmse_value="N/A"
+        fi
+
+        echo "${dir%/} $toten_value $rmse_value" >> $output_file
+    fi
+done
