@@ -6,6 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Convert LAMMPS dump file to POSCAR with velocities")
 parser.add_argument("--input_file", "-i", type=str, default="selected.dump",  help="input .dump file")
+parser.add_argument("--velocity", "-v", default=False, action='store_true', help="Defualt: Do not save velocities")
 
 args = parser.parse_args()
 dump_file = args.input_file
@@ -47,5 +48,7 @@ def append_to_poscar(velocities, poscar_file="POSCAR"):
         for v in velocities:
             f.write("{:.16f} {:.16f} {:.16f}\n".format(v[0], v[1], v[2]))
 
-velocities = read_lammps_dump(dump_file)
-append_to_poscar(velocities)
+if args.velocity:
+    velocities = read_lammps_dump(dump_file)
+    append_to_poscar(velocities)
+    

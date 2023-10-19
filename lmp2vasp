@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+tb=${1:-'582800'}
+te=${2:-'583300'}
+
+mkdir extract
+cd extract
+
+extract_frames -i ../nvt.dump -tb $tb -te $te
+
+for file in *.dump; do
+    dir_name=$(basename "$file" .dump)
+    mkdir -p "$dir_name"
+    mv "$file" "$dir_name/"
+done
+
+for dir in *; do
+    cd "$dir"
+    lmp2poscar.py -i $dir.dump
+    cd ..
+done

@@ -33,8 +33,8 @@ mkdir nvt
 
 extract_dump_frame -i npt.dump -t $beststep
 mv selected.dump nvt/
-cp ../_inputs/nvt/in.lammps nvt/
-cp ../_inputs/nvt/run.slurm nvt/
+# cp ../_inputs/nvt/in.lammps nvt/
+# cp ../_inputs/nvt/run.slurm nvt/
 
 cd nvt
 atomsk selected.dump nvt.lmp
