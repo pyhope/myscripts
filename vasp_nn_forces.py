@@ -46,7 +46,7 @@ forces_vasp = extract_outcar(path + '/OUTCAR')
 forces_nn = extract_dump(glob.glob(path + '/*.dump')[0])
 rmse = dev_vasp_nn(forces_vasp, forces_nn)
 print('RMSE = ', rmse)
-with open('RMSE_F', 'w') as f:
+with open(path + '/RMSE_F', 'w') as f:
     f.write(str(rmse))
 
 # np.savetxt('forces_vasp.txt', forces_vasp)
