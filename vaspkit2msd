@@ -1,0 +1,15 @@
+#!/bin/bash
+
+input_file=${1:-'MSD.dat'}
+
+if [ ! -f "$input_file" ]; then
+    echo "Error: File $input_file does not exist!"
+    exit 2
+fi
+
+awk 'NR>1 {print $2}' "$input_file" > msd_x.txt
+awk 'NR>1 {print $3}' "$input_file" > msd_y.txt
+awk 'NR>1 {print $4}' "$input_file" > msd_z.txt
+awk 'NR>1 {print $5}' "$input_file" > msd_fft.txt
+
+echo "Extraction done!"

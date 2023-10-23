@@ -3,8 +3,7 @@
 # author: Yihang Peng
 import numpy as np
 import argparse
-import glob
-#from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-i",type=str, default = 'msd_fft.txt' ,help="input file")
@@ -41,12 +40,15 @@ def CalcMSD(msd):
     D = 10 * D # unit: * 1e-9 m^2/s
 
     print(t[index1:index2])
-    print("D_H = ", D, "* 1e-9 m^2/s")
+    print("D = ", D, "* 1e-9 m^2/s")
     print("R^2 = ", Rs)
     return D
 
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111)
 msd = np.loadtxt(args.file, skiprows=1)
 if msd.ndim == 1:
+    ax.plot(np.array(list(range(len(msd)))) * timestep, msd)
     D = CalcMSD(msd)
     dataout = open(args.output, "w")
     dataout.write(str(D)+' ')
@@ -54,5 +56,11 @@ elif msd.ndim == 2:
     dataout = open(args.output, "w")
     for index, row in enumerate(msd.T):
         print('Element:', index + 1)
+        ax.plot(np.array(list(range(len(row)))) * timestep, row, label='Element: ' + str(index + 1))
         D = CalcMSD(row)
         dataout.write(str(D)+'\n')
+    ax.legend()
+
+ax.set_xlabel('Time (fs)')
+ax.set_ylabel('MSD (A^2)')
+plt.savefig('msd.jpg', dpi=300)
