@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--file","-i",type=str, default = 'msd_fft.txt' ,help="input file")
 parser.add_argument("--lim1","-l1",type = float, default = 1e5, help="time threshold 1")
 parser.add_argument("--lim2","-l2",type = float, default = 5e5, help="time threshold 2")
-parser.add_argument("--timestep","-ts",type = int, default = 50, help="time steps")
+parser.add_argument("--timestep","-ts",type = float, default = 50, help="time steps")
 parser.add_argument("--output","-o",type = str, default = 'D_H', help="output filename")
 
 args   = parser.parse_args()

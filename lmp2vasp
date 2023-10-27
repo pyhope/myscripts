@@ -2,13 +2,13 @@
 
 set -e
 
-tb=${1:-'582800'}
-te=${2:-'583300'}
+# tb=${1:-'13146800'}
+# te=${2:-'13147800'}
 
-mkdir extract
-cd extract
+# mkdir extract
+# cd extract
 
-extract_frames -i ../nvt.dump -tb $tb -te $te
+# extract_frames -i ../nvt.dump -tb $tb -te $te
 
 for file in *.dump; do
     dir_name=$(basename "$file" .dump)
@@ -18,6 +18,6 @@ done
 
 for dir in *; do
     cd "$dir"
-    lmp2poscar.py -i $dir.dump
+    lmp2poscar.py -i $dir.dump -v
     cd ..
 done

@@ -40,5 +40,5 @@ mkdir restart
 # else
 #     sbatch run.slurm
 # fi
-sbatch run.slurm
+# sbatch run.slurm
 unset step_list
