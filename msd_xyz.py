@@ -14,7 +14,7 @@ import glob
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str,help="input file")
 parser.add_argument("--eles","-e",type = str, default = None, help="elements to analyze (split with -)")
-parser.add_argument("--region","-r",type=str, default = None, help="region of the atoms of interest (split with -, only consider y axis)")
+parser.add_argument("--boundary","-b",type=str, default = None, help="boundary to analyze")
 parser.add_argument("--format","-ft",type = str,default = 'LAMMPSDUMP', help="file format, e.g., LAMMPSDUMP, PDB")
 parser.add_argument("--timestep","-ts",type = int,default = 1, help="timestep")
 
@@ -98,12 +98,14 @@ else:
     ele_sel = args.eles.split('-')
     
 for ele in ele_sel:
-    if not args.region:
+    if not args.boundary:
         idx = u_md.select_atoms('type %s' % (ele)).indices
     else:
-        lower, upper = args.region.split('-')
+        b = args.boundary
         u_npt = mda.Universe('../npt.lmp', format='DATA', atom_style='id type q x y z')
-        idx = u_npt.select_atoms('type %s and prop y > %s and prop y < %s' % (ele, lower, upper)).indices
+        box_dim = u_npt.dimensions[:3]
+        bx, by, bz = str(box_dim[0] - float(b)), str(box_dim[1] - float(b)), str(box_dim[2] - float(b))
+        idx = u_npt.select_atoms('type '+ele+' and prop x > '+b+' and prop x < '+bx+' and prop y > '+b+' and prop y < '+by+' and prop z > '+b+' and prop z < '+bz).indices
     print(ele, idx)
     tmpx = np.zeros(len(u_md.trajectory))
     tmpy = np.zeros(len(u_md.trajectory))
