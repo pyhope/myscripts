@@ -4,8 +4,10 @@
 import time
 start_time = time.time()
 formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
-print('Program starts at: ', formatted_time)
-print("Loading modules ...")
+logfile = open('msd.log', 'w')
+logfile.write('Program starts at: ' + formatted_time + '\n')
+logfile.write("Loading modules ...\n")
+
 import numpy as np
 import MDAnalysis as mda
 import matplotlib.pyplot as plt
@@ -14,7 +16,7 @@ import glob
 import multiprocessing
 import os
 module_time = time.time()
-print("End after %.2f s" % (module_time - start_time))
+logfile.write("End after %.2f s\n" % (module_time - start_time))
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str,help="input file")
@@ -81,7 +83,7 @@ def task(i):
     data_x = msd_straight_forward(r)[0]
     data_y = msd_straight_forward(r)[1]
     data_z = msd_straight_forward(r)[2]
-    print(i, end=' ')
+    logfile.write(str(i)+' ')
     return data_x, data_y, data_z
 
 if args.file:
@@ -92,22 +94,22 @@ else:
     file = files[0]
     print("Find {0}; analyze {1}".format(files,file))
 
-print("Loading dump file ...")
+logfile.write("Loading dump file ...\n")
 u_md = mda.Universe(file, format=args.format)
 loading_time = time.time()
-print("End after %.2f s" % (loading_time - module_time))
+logfile.write("End after %.2f s\n" % (loading_time - module_time))
 
-print("Transferring to memory ...")
+logfile.write("Transferring to memory ...\n")
 u_md.transfer_to_memory()
 transfer_time = time.time()
-print("End after %.2f s" % (transfer_time - loading_time))
+logfile.write("End after %.2f s\n" % (transfer_time - loading_time))
 
 frames = u_md.trajectory
 box    = frames[0].dimensions[0:3]
 
-print("Calculating MSD ...")
+logfile.write("Calculating MSD ...\n")
 cores = int(os.getenv('SLURM_CPUS_PER_TASK'))
-print('Number of CPU cores', cores)
+logfile.write('Number of CPU cores: %d\n' % cores)
 msdx, msdy, msdz = [], [], []
 eles = []
 for atom in u_md.atoms.types:
@@ -127,9 +129,8 @@ for ele in ele_sel:
         box_dim = u_npt.dimensions[:3]
         bx, by, bz = str(box_dim[0] - float(b)), str(box_dim[1] - float(b)), str(box_dim[2] - float(b))
         idx = u_npt.select_atoms('type '+ele+' and prop x > '+b+' and prop x < '+bx+' and prop y > '+b+' and prop y < '+by+' and prop z > '+b+' and prop z < '+bz).indices
-    print()
-    print('Elements:', ele)
-    print('Number of atoms:',len(idx))
+    logfile.write('\nElements: %s\n' % ele)
+    logfile.write('Number of atoms: %d\n' % len(idx))
     tmpx = np.zeros(len(u_md.trajectory))
     tmpy = np.zeros(len(u_md.trajectory))
     tmpz = np.zeros(len(u_md.trajectory))
@@ -144,21 +145,19 @@ for ele in ele_sel:
     msdz.append(tmpz/len(idx))
 
     calc_time = time.time()
-    print()
-    print("End after %.2f s" % (calc_time - transfer_time))
+    logfile.write("\nEnd after %.2f s\n" % (calc_time - transfer_time))
     transfer_time = calc_time
 
-print()
-print("Saving to file ...")
+logfile.write("\nSaving to file ...\n")
 x_arr, y_arr, z_arr = np.array(msdx).T, np.array(msdy).T, np.array(msdz).T
 np.savetxt("msd_x.txt", x_arr, header='    '.join(ele_sel), fmt = '%2.6f')
 np.savetxt("msd_y.txt", y_arr, header='    '.join(ele_sel), fmt = '%2.6f')
 np.savetxt("msd_z.txt", z_arr, header='    '.join(ele_sel), fmt = '%2.6f')
 np.savetxt("msd_fft.txt", x_arr + y_arr + z_arr, header='    '.join(ele_sel), fmt = '%2.6f')
 sf_time = time.time()
-print("End after %.2f s" % (sf_time - calc_time))
+logfile.write("End after %.2f s\n" % (sf_time - calc_time))
 
-print("Plotting ...")
+logfile.write("\nPlotting ...\n")
 plt.figure(dpi=300)
 for i in range(len(ele_sel)):
     x = (np.array(list(range(len(msdx[i]))))*args.timestep)[1:]
@@ -198,4 +197,6 @@ plt.ylabel('MSD (A$^2$)')
 plt.savefig("msd.png",bbox_inches='tight')
 
 plot_time = time.time()
-print("End after %.2f s" % (plot_time - sf_time))
+logfile.write("End after %.2f s\n" % (plot_time - sf_time))
+logfile.write("Program ends after %.2f s\n" % (plot_time - start_time))
+logfile.close()
