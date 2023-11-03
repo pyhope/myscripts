@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import argparse
+
+parser = argparse.ArgumentParser(description='Add charge to lammps dump file')
+parser.add_argument("--input_file", "-i", type=str, default="nvt.dump",  help="original dump filename")
+parser.add_argument("--output_file", "-o", type=str, default="nvt_charge.dump",  help="new dump filename")
+args = parser.parse_args()
+
 def assign_charge(lammps_dump_file, output_file):
     with open(lammps_dump_file, 'r') as file:
         lines = file.readlines()
@@ -37,6 +44,4 @@ def assign_charge(lammps_dump_file, output_file):
     with open(output_file, 'w') as file:
         file.writelines(output_data)
 
-lammps_dump_file = 'test.dump'
-output_file = 'test_charge.dump'
-assign_charge(lammps_dump_file, output_file)
+assign_charge(args.input_file, args.output_file)
