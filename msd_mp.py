@@ -125,7 +125,7 @@ for ele in ele_sel:
         idx = u_md.select_atoms('type %s' % (ele)).indices
     else:
         b = args.boundary
-        u_npt = mda.Universe('../npt.lmp', format='DATA', atom_style='id type q x y z')
+        u_npt = mda.Universe(args.nptfile, format='DATA', atom_style='id type q x y z')
         box_dim = u_npt.dimensions[:3]
         bx, by, bz = str(box_dim[0] - float(b)), str(box_dim[1] - float(b)), str(box_dim[2] - float(b))
         idx = u_npt.select_atoms('type '+ele+' and prop x > '+b+' and prop x < '+bx+' and prop y > '+b+' and prop y < '+by+' and prop z > '+b+' and prop z < '+bz).indices
