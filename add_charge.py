@@ -6,6 +6,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Add charge to lammps dump file')
 parser.add_argument("--input_file", "-i", type=str, default="nvt.dump",  help="original dump filename")
 parser.add_argument("--output_file", "-o", type=str, default="nvt_charge.dump",  help="new dump filename")
+parser.add_argument("--isMgFeO", "-Fe", default=False, action='store_true', help="Defualt: this is MgFeO")
 args = parser.parse_args()
 
 def assign_charge(lammps_dump_file, output_file):
@@ -31,12 +32,22 @@ def assign_charge(lammps_dump_file, output_file):
         y = tokens[3]
         z = tokens[4]
         
-        if atom_type == 1:
-            charge = 1.2
-        elif atom_type == 2:
-            charge = -1.2
+        if args.isMgFeO:
+            if atom_type == 1:
+                charge = 1.2
+            elif atom_type == 2:
+                charge = 1.2
+            elif atom_type == 3:
+                charge = -1.2
+            else:
+                charge = 0
         else:
-            charge = 0  # or any default value you want for other types
+            if atom_type == 1:
+                charge = 1.2
+            elif atom_type == 2:
+                charge = -1.2
+            else:
+                charge = 0
         
         modified_atom_line = f"{atom_id} {atom_type} {charge} {x} {y} {z}\n"
         output_data.append(modified_atom_line)
