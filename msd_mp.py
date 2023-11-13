@@ -19,7 +19,7 @@ print("End after %.2f s" % (module_time - start_time))
 parser = argparse.ArgumentParser()
 parser.add_argument("--file","-f",type=str,help="input file")
 parser.add_argument("--eles","-e",type = str, default = None, help="elements to analyze (split with -)")
-parser.add_argument("--boundary","-b",type=str, default = None, help="boundary to analyze")
+parser.add_argument("--boundary","-b",type=str, default = None, help="boundaries to analyze (format: x-y-z in Angstrom)")
 parser.add_argument("--format","-ft",type = str,default = 'LAMMPSDUMP', help="file format, e.g., LAMMPSDUMP, PDB")
 parser.add_argument("--timestep","-ts",type = int,default = 1, help="timestep")
 parser.add_argument("--nptfile","-nptf",type=str, default = './npt.lmp', help="npt.lmp file")
@@ -122,11 +122,11 @@ for ele in ele_sel:
     if not args.boundary:
         idx = u_md.select_atoms('type %s' % (ele)).indices
     else:
-        b = args.boundary
+        bx, by, bz = args.boundary.split('-')
         u_npt = mda.Universe(args.nptfile, format='DATA', atom_style='id type q x y z')
         box_dim = u_npt.dimensions[:3]
-        bx, by, bz = str(box_dim[0] - float(b)), str(box_dim[1] - float(b)), str(box_dim[2] - float(b))
-        idx = u_npt.select_atoms('type '+ele+' and prop x > '+b+' and prop x < '+bx+' and prop y > '+b+' and prop y < '+by+' and prop z > '+b+' and prop z < '+bz).indices
+        bx2, by2, bz2 = str(box_dim[0] - float(bx)), str(box_dim[1] - float(by)), str(box_dim[2] - float(bz))
+        idx = u_npt.select_atoms('type '+ele+' and prop x > '+bx+' and prop x < '+bx2+' and prop y > '+by+' and prop y < '+by2+' and prop z > '+bz+' and prop z < '+bz2).indices
     print()
     print('Elements:', ele)
     print('Number of atoms:',len(idx))
