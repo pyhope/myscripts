@@ -3,6 +3,7 @@
 
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 
 def compute_stats(filename, start_line):
     with open(filename, 'r') as f:
@@ -14,6 +15,13 @@ def compute_stats(filename, start_line):
     # Calculate the mean and standard deviation
     mean_value = np.mean(values)
     std_value = np.std(values)
+
+    plt.subplots(figsize=(8, 8))
+    values = np.loadtxt(filename)
+    plt.plot(values)
+    plt.xlabel('Line Number')
+    plt.ylabel('Value')
+    plt.savefig('plot.png', dpi=300)
 
     return mean_value, std_value
 
