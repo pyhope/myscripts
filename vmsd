@@ -1,0 +1,12 @@
+#!/bin/bash
+
+cat > INPUT << EOF
+722
+1
+$1
+500
+1
+EOF
+cat INPUT | vaspkit
+rm INPUT
+vaspkit2msd
