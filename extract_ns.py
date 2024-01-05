@@ -5,6 +5,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Extract frames from LAMMPS dump file.")
 parser.add_argument("--input_filename", "-i", type=str, default='nvt.dump', help="Input filename (default: nvt.dump)")
+parser.add_argument("--frequency", "-f", type=int, default=1000000, help="Frequency of frames to be extracted (default: 1000000)")
 
 args = parser.parse_args()
 
@@ -18,9 +19,9 @@ while line:
         timestep_line = datain.readline()
         thisframe = int(timestep_line.strip())
         
-        # Check if current frame is divisible by 1000000
-        if thisframe % 1000000 == 0:
-            output_filename = str(thisframe // 1000000) + '.dump'
+        # Check if current frame is divisible by args.frequency
+        if thisframe % args.frequency == 0:
+            output_filename = str(thisframe // args.frequency) + '.dump'
             with open(output_filename, 'w') as dataout:
                 dataout.write("ITEM: TIMESTEP\n")
                 dataout.write(timestep_line)
