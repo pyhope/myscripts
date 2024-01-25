@@ -17,7 +17,7 @@ index=0
 declare -a step_list
 for file_name in ${file_list[*]}
     do
-    file_extension=${file_name##*.} # Extract the extension part (sring after the last '.') of the file name
+    file_extension=${file_name##*.} # Extract the extension part (string after the last '.') of the file name
     if [ "$file_extension" -gt 0 ] 2>/dev/null ;then # Check if the file extension is a number
         step_list[index]=$file_extension # If so, store the numbers in a list
         index=`expr $index + 1`
@@ -31,14 +31,16 @@ for (( k=0;k<${#step_list[*]};k++))
 echo $max # Find the maximum in the step_list array
 cp restart/poly.restart.$max ../$New_dir
 cp run.slurm ../$New_dir
-cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/poly.restart.$max/}" > ../$New_dir/in.lammps
+
+# Check if Previous_dir is 'nvt' and modify in.lammps accordingly
+if [ "$Previous_dir" = "nvt" ]; then
+    cat in.lammps | sed -e "/read_data/s/.*/read_restart poly.restart.$max/" > ../$New_dir/in.lammps
+else
+    cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/poly.restart.$max/}" > ../$New_dir/in.lammps
+fi
+
 cd ../$New_dir
 mkdir restart
-# dirs=( ../*/ )
-# if [ ${#dirs[@]} -eq 2 ]; then
-#     echo "This is the first run. Please modify the in.lammps file and submit the job manually."
-# else
-#     sbatch run.slurm
-# fi
+
 # sbatch run.slurm
 unset step_list
