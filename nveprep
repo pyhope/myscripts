@@ -21,7 +21,7 @@ else
     exit 1
 fi
 
-find_best_frame -st 10000 -t $temp -p $press
+find_best_frame_nve -st 10000 -t $temp -p $press
 
 if test -e ./BEST_STEP
 then
@@ -40,8 +40,8 @@ mv selected.dump ../nve/
 
 cd ..
 sysname=`basename $PWD`
-cp ../_inputs/nve/in.lammps nve/
-cp ../_inputs/nve/run.slurm nve/
+# cp ../_inputs/nve/in.lammps nve/
+# cp ../_inputs/nve/run.slurm nve/
 
 cd nve
 sed -i "s/job-name=nve/job-name=t${temp}p${press}-${sysname}/g" run.slurm
