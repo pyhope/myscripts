@@ -40,8 +40,8 @@ cd nvt
 mkdir restart
 atomsk selected.dump nvt.lmp
 sed -i 's/1   1.00800000              # H/1   24.30500000             # Mg/g' nvt.lmp
-sed -i 's/2   4.00260200              # He/3   15.99900000             # O/g' nvt.lmp
-sed -i 's/3   6.94000000              # Li/2   55.84500000             # Fe/g' nvt.lmp
+sed -i 's/2   4.00260200              # He/2   15.99900000             # O/g' nvt.lmp
+sed -i 's/3   6.94000000              # Li/3   55.84500000             # Fe/g' nvt.lmp
 sed -i 's/4   9.01218200              # Be/4   183.84000000            # W/g' nvt.lmp
 
 #sbatch run.slurm
