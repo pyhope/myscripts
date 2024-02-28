@@ -1,6 +1,6 @@
 #!/bin/bash
 
-start_step=${1:-'10000'}
+start_step=${1:-'20000'}
 mode=${2:-'aniso'}
 
 if test -e ./log.lammps
