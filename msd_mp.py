@@ -25,6 +25,7 @@ parser.add_argument("--timestep","-ts",type = int,default = 1, help="timestep")
 parser.add_argument("--nptfile","-nptf",type=str, default = './npt.lmp', help="npt.lmp file")
 parser.add_argument("--npt_atom_style","-nptas",type=str, default = 'id type q x y z', help="npt.lmp file atom style")
 parser.add_argument("--boundary2", "-b2", default=False, action='store_true', help="Defualt: calculate the center boundary")
+parser.add_argument("--start","-s",type = int, default = 0, help="start frame")
 
 args   = parser.parse_args()
 
@@ -104,7 +105,7 @@ u_md.transfer_to_memory()
 transfer_time = time.time()
 print("End after %.2f s" % (transfer_time - loading_time))
 
-frames = u_md.trajectory
+frames = u_md.trajectory[args.start:]
 box    = frames[0].dimensions[0:3]
 
 print("Calculating MSD ...")
@@ -137,9 +138,9 @@ for ele in ele_sel:
     print()
     print('Elements:', ele)
     print('Number of atoms:',len(idx))
-    tmpx = np.zeros(len(u_md.trajectory))
-    tmpy = np.zeros(len(u_md.trajectory))
-    tmpz = np.zeros(len(u_md.trajectory))
+    tmpx = np.zeros(len(frames))
+    tmpy = np.zeros(len(frames))
+    tmpz = np.zeros(len(frames))
     with multiprocessing.Pool(cores) as pool:
         results = pool.map(task, idx)
     for result in results:

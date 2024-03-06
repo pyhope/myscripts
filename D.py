@@ -32,11 +32,10 @@ def CalcMSD(msd):
     slope, intercept, r_squared, std_err = fit(t[index1:index2], msd[index1:index2])
 
     D = slope / 6  # unit: A^2/fs
-    D = 1000 * D  # unit: A^2/ps
-    D = 10 * D   # unit: * 1e-9 m^2/s
-    D_error = std_err / 6 * 10000  # unit: * 1e-9 m^2/s
+    D = D * 1e-5   # unit: m^2/s
+    D_error = std_err / 6 * 1e-5  # unit: * m^2/s
 
-    print(f"D = {D} ± {D_error} * 1e-9 m^2/s")
+    print(f"D = %.2e ± %.2e m^2/s" % (D, D_error))
     print(f"R^2 = {r_squared}")
     return D, D_error
 
@@ -44,6 +43,11 @@ def CalcMSD(msd):
 fig = plt.figure(figsize=(8, 6))
 ax = fig.add_subplot(111)
 msd = np.loadtxt(args.file, skiprows=1)
+
+with open(args.file, "r") as file:
+    first_line = file.readline()
+    numbers = first_line.lstrip("# ").split()
+    number_list = [int(number) for number in numbers]
 
 dataout = open(args.output, "w")
 errorout = open(args.error_output, "w")
@@ -54,12 +58,17 @@ if msd.ndim == 1:
     dataout.write(str(D) + ' ')
     errorout.write(str(D_error) + ' ')
 elif msd.ndim == 2:
+    Data = dict()
     for index, row in enumerate(msd.T):
-        print('Element:', index + 1)
-        ax.plot(np.array(list(range(len(row)))) * timestep, row, label='Element: ' + str(index + 1))
+        ele_num = number_list[index]
+        print('Element:', ele_num)
+        ax.plot(np.array(list(range(len(row)))) * timestep, row, label='Element: ' + str(ele_num))
         D, D_error = CalcMSD(row)
-        dataout.write(str(D) + '\n')
-        errorout.write(str(D_error) + '\n')
+        Data[ele_num] = [D, D_error]
+
+    for i in range(1, len(Data) + 1):
+        dataout.write('%.3e\n' % Data[i][0])
+        errorout.write('%.2e\n' % Data[i][1])
     ax.legend()
 
 dataout.close()
