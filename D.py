@@ -14,9 +14,11 @@ parser.add_argument("--lim2", "-l2", type=float, default=5e5, help="time thresho
 parser.add_argument("--timestep", "-ts", type=float, default=50, help="time steps")
 parser.add_argument("--output", "-o", type=str, default='D_H', help="output filename")
 parser.add_argument("--error_output", "-eo", type=str, default='D_err', help="error output filename")
+parser.add_argument("--multiply", "-m", type=float, default=1, help="multiply factor for D")
 
 args = parser.parse_args()
 timestep = args.timestep
+factor = args.multiply
 
 # Function for linear fitting
 def fit(x, y):
@@ -33,7 +35,9 @@ def CalcMSD(msd):
 
     D = slope / 6  # unit: A^2/fs
     D = D * 1e-5   # unit: m^2/s
+    D = D * factor
     D_error = std_err / 6 * 1e-5  # unit: * m^2/s
+    D_error = D_error * factor
 
     print(f"D = %.2e ± %.2e m^2/s" % (D, D_error))
     print(f"R^2 = {r_squared}")
