@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -e # If there is any non-zero status from scripts run by the bash, the bash will automatically error out.
+
+if [ -z $2 ]; then
+    echo Missing parameters!
+    exit 1
+fi
+
+Previous_dir=$1 # the directory name of the previous run, which contains in.lammps, run.slurm (submitting script), and all poly.restart files
+New_dir=$2 # the directory name for a new run
+
+mkdir $New_dir
+cd $Previous_dir
+
+cp CONTCAR ../$New_dir/POSCAR
+cp INCAR ../$New_dir
+cp ICONST ../$New_dir
+cp POTCAR ../$New_dir
+cp KPOINTS ../$New_dir
+cp WAVECAR ../$New_dir
+cp run.slurm ../$New_dir
+
+cd ../$New_dir
+
+# sbatch run.slurm
