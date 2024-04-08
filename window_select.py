@@ -19,10 +19,10 @@ tcorr_idx = range(len(tcorr))
 
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 
-#ax[0].plot(tcorr, np.mean(jxyz, axis=0))
-ax[0].plot(tcorr, np.mean(kxyz, axis=0), c='k')
-for i, k in enumerate(kxyz):
-    ax[1].plot(tcorr, k, c=c[i], label=dirctions[i])
+ax[0].plot(tcorr, np.mean(jxyz, axis=0))
+ax[1].plot(tcorr, np.mean(kxyz, axis=0), c='k')
+# for i, k in enumerate(kxyz):
+#     ax[1].plot(tcorr, k, c=c[i], label=dirctions[i])
 
 ax[1].set_xlabel('t (ps)')
 ax[1].legend(fancybox=False, edgecolor='black')
