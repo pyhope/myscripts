@@ -1,12 +1,18 @@
 #!/bin/bash
 
+element=$1
+time1=${2:-'1e3'}
+time2=${3:-'5e3'}
+timestep=${4:-'1'}
+
 cat > INPUT << EOF
 722
 1
-$1
-500
+$element
+100
 1
 EOF
 cat INPUT | vaspkit
 rm INPUT
 vaspkit2msd
+D.py -l1 $time1 -l2 $time2 -ts $timestep -o D.txt
