@@ -7,9 +7,13 @@ if [ ! -f "$input_file" ]; then
     exit 2
 fi
 
-awk 'NR>1 {print $2}' "$input_file" > msd_x.txt
-awk 'NR>1 {print $3}' "$input_file" > msd_y.txt
-awk 'NR>1 {print $4}' "$input_file" > msd_z.txt
-awk 'NR>1 {print $5}' "$input_file" > msd_fft.txt
+echo "# 1" > msd_x.txt
+echo "# 1" > msd_y.txt
+echo "# 1" > msd_z.txt
+echo "# 1" > msd_fft.txt
+awk 'NR>1 {print $2}' "$input_file" >> msd_x.txt
+awk 'NR>1 {print $3}' "$input_file" >> msd_y.txt
+awk 'NR>1 {print $4}' "$input_file" >> msd_z.txt
+awk 'NR>1 {print $5}' "$input_file" >> msd_fft.txt
 
 echo "Extraction done!"
