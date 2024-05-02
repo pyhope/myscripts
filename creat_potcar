@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+POTCAR_DIR="/scratch/gpfs/yp0007/pseudopotentials/PBE"
+
+cat /dev/null > POTCAR
+
+for element in "$@"
+do
+    ELEMENT_DIR="${POTCAR_DIR}/${element}"
+
+    if [ -f "${ELEMENT_DIR}/POTCAR" ]; then
+        cat "${ELEMENT_DIR}/POTCAR" >> POTCAR
+    else
+        ELEMENT_DIR="${POTCAR_DIR}/${element}_pv"
+        if [ -f "${ELEMENT_DIR}/POTCAR" ]; then
+            cat "${ELEMENT_DIR}/POTCAR" >> POTCAR
+            echo "POTCAR file for element ${element} has been added from _pv directory."
+        else
+            echo "Error: POTCAR file for element ${element} does not exist in standard or _pv directory."
+            exit 1
+        fi
+    fi
+done
+
+echo "POTCAR file has been created successfully."
