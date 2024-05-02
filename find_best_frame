@@ -14,8 +14,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--input_filename", "-i", type=str, default='log.lammps', help="input filename (log.lammps)")
 parser.add_argument("--startstep", "-st", type=int, default=5000, help="start step (5000)")
 parser.add_argument("--aniso", "-aniso", action='store_true', help="Use anisotropic dimensions (lx, ly, lz) instead of volume")
+parser.add_argument("--iso", "-iso", action='store_true', help="Use isotropic volume instead of anisotropic dimensions")
 
 args = parser.parse_args()
+
+def check_convertible_to_int(s: str) -> int:
+    try:
+        int(s)  # Try to convert the string to an integer
+        return True
+    except ValueError:
+        return False
 
 # Open and read the input file
 datain = open(args.input_filename, "r")
@@ -35,18 +43,17 @@ step_values = {}
 # Reading step data
 line = datain.readline()
 while line:
-    if line.rstrip().split()[0] == 'Loop':
-        break
-    step = int(line.rstrip().split()[0])
-    if step >= args.startstep:
-        value1 = float(line.rstrip().split()[6])  # lx or volume
-        value2 = float(line.rstrip().split()[7]) if args.aniso else 0  # ly, 0 if volume
-        value3 = float(line.rstrip().split()[8]) if args.aniso else 0  # lz, 0 if volume
-        sum1 += value1
-        sum2 += value2
-        sum3 += value3
-        count += 1
-        step_values[step] = (value1, value2, value3)
+    if line.rstrip().split():
+        step = line.rstrip().split()[0]
+        if check_convertible_to_int(step) and int(step) >= args.startstep:
+            value1 = float(line.rstrip().split()[6])  # lx or volume
+            value2 = float(line.rstrip().split()[7]) if args.aniso else 0  # ly, 0 if volume
+            value3 = float(line.rstrip().split()[8]) if args.aniso else 0  # lz, 0 if volume
+            sum1 += value1
+            sum2 += value2
+            sum3 += value3
+            count += 1
+            step_values[step] = (value1, value2, value3)
     line = datain.readline()
 
 # Calculating average
