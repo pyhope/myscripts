@@ -50,4 +50,8 @@ print(f"From line {args.start_line} to the end of the file:")
 print(f"Mean: {mean_value:.4f}")
 if prop == "volume":
     print(f"Mean dimention: {np.cbrt(mean_value):.4f}")
+    with open("L.dat", "w") as f:
+        f.write(f"{np.cbrt(mean_value):.4f}\n")
+        f.write(f"{mean_value:.4f}\n")
+        f.write(f"{std_value:.4f}\n")
 print(f"Standard Deviation: {std_value:.4f}")
