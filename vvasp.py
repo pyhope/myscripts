@@ -46,6 +46,7 @@ plt.xlabel('Time (fs)')
 plt.ylabel(prop)
 plt.savefig(plot_filename, dpi=300)
 
+print(f"Processing {prop} data...")
 print(f"From line {args.start_line} to the end of the file:")
 print(f"Mean: {mean_value:.4f}")
 if prop == "volume":

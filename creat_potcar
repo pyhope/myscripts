@@ -11,7 +11,11 @@ do
     ELEMENT_DIR="${POTCAR_DIR}/${element}"
 
     if [ -f "${ELEMENT_DIR}/POTCAR" ]; then
-        cat "${ELEMENT_DIR}/POTCAR" >> POTCAR
+        if [ ${element} == "Mg" ]; then
+            cat "${ELEMENT_DIR}_pv/POTCAR" >> POTCAR
+        else
+            cat "${ELEMENT_DIR}/POTCAR" >> POTCAR
+        fi
     else
         ELEMENT_DIR="${POTCAR_DIR}/${element}_pv"
         if [ -f "${ELEMENT_DIR}/POTCAR" ]; then
