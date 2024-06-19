@@ -5,7 +5,7 @@ if [ -z $1 ]; then
     exit 1
 fi
 
-source ~/.bashrc
+INP=/scratch/gpfs/yp0007/project/mg2sio4/inputs
 conda activate deepmd
 
 cp -r deepmd deepmd_tmp
