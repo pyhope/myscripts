@@ -1,52 +1,49 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Created on Sun Oct  9 12:25:43 2022
-@author: Yihang Peng
-"""
-
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--input_filename","-i",type=str, default = 'npt.dump' ,help="input filename (npt.dump)")
-parser.add_argument("--output_filename","-o",type=str, default = 'selected.dump' ,help="output filename (selected.dump)")
-parser.add_argument("--timestep","-t",type=str, help="target frame")
+parser = argparse.ArgumentParser(description="Extract a frame from LAMMPS dump file.")
+parser.add_argument("--input_filename", "-i", type=str, default='npt.dump', help="Input filename (default: npt.dump)")
+parser.add_argument("--output_filename", "-o", type=str, default='selected.dump', help="Output filename (default: selected.dump)")
+parser.add_argument("--timestep", "-t", type=int, help="Timestep of the target frame. The last frame will be used if not provided.")
 
-args   = parser.parse_args()
+args = parser.parse_args()
 
-timestep = args.timestep
+with open(args.input_filename, 'r') as datain:
+    last_frame = []
+    target_frame = None
+    line = datain.readline()
 
-datain = open(args.input_filename, 'r')
-
-# Find and record the target frame
-line = datain.readline()
-while line:
-    while line.rstrip() != "ITEM: TIMESTEP":
-        if line:
-            line = datain.readline()
+    while line:
+        if "ITEM: TIMESTEP" in line:
+            timestep_line = datain.readline()
+            thisframe = int(timestep_line.strip())
+            
+            if target_frame is not None:
+                break  # Exit if we have already found the target frame
+            
+            current_frame = ["ITEM: TIMESTEP\n", timestep_line]
+            
+            # Read the current frame
+            while True:
+                line = datain.readline()
+                if not line or "ITEM: TIMESTEP" in line:
+                    break
+                current_frame.append(line)
+                
+            # Check if this is the target frame
+            if args.timestep is not None and thisframe == args.timestep:
+                target_frame = current_frame
+            else:
+                last_frame = current_frame
+            
         else:
-            print("Not Found!")
-            break
-    else:
-        writedata = line
-        line = datain.readline()
-        if line.rstrip() == timestep:
-            writedata += line
-            break
-writedata += datain.readline()
-line = datain.readline()
-atom_num = int(line)
-writedata += line
-i = -4
-while i <= atom_num:
-    if line:
-        line = datain.readline()
-        writedata += line
-        i += 1
-    else:
-        print("Error!")
+            line = datain.readline()
 
-# Write data to new file
-dataout = open(args.output_filename, 'w')
-dataout.write(writedata)
+# Use the last frame if no specific timestep is provided or target frame is not found
+if target_frame is None:
+    target_frame = last_frame
+
+if target_frame:
+    with open(args.output_filename, 'w') as dataout:
+        dataout.writelines(target_frame)
+else:
+    print(f"Timestep {args.timestep} not found in the input file.")
