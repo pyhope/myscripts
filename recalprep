@@ -1,11 +1,14 @@
 #!/bin/bash
 
-if [ -z $1 ]; then
+if [ -z $2 ]; then
     echo Missing parameters!
     exit 1
 fi
 
-INP=/scratch/gpfs/yp0007/project/mg2sio4/inputs
+INP=$1
+
+module purge
+module load anaconda3/2020.11
 conda activate deepmd
 
 cp -r deepmd deepmd_tmp
@@ -13,6 +16,6 @@ cp -r deepmd deepmd_test
 rm -rf deepmd_tmp/set.001
 rm -rf deepmd_test/set.000
 
-python $MLDP/recal_dpdata.py -d deepmd_tmp/ -rd recal -t $1 -if $INP
-python $MLDP/recal_dpdata.py -d deepmd_test/ -rd recal_test -t $1 -if $INP
+python $MLDP/recal_dpdata.py -d deepmd_tmp/ -rd recal -t $2 -if $INP
+python $MLDP/recal_dpdata.py -d deepmd_test/ -rd recal_test -t $2 -if $INP
 rm -rf deepmd_tmp deepmd_test
