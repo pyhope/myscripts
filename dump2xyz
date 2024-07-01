@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+filename=${1:-'selected.dump'}
+
+atomsk $filename tmp.lmp
+
+sed -i '' 's/1   1.00800000              # H/1   24.30500000             # Mg/g' tmp.lmp
+sed -i '' 's/2   4.00260200              # He/2   15.99900000             # O/g' tmp.lmp
+sed -i '' 's/3   6.94000000              # Li/3   55.84500000             # Fe/g' tmp.lmp
+sed -i '' 's/4   9.01218200              # Be/4   183.84000000            # W/g' tmp.lmp
+
+atomsk tmp.lmp merge.exyz
+
+rm tmp.lmp
