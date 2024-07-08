@@ -13,9 +13,11 @@ rcParams['ytick.direction'] = 'in'
 parser = argparse.ArgumentParser(description="Plot contents from lammps log files")
 parser.add_argument("-i", "--input_file", type=str, default="log.lammps",  help="LAMMPS output file")
 parser.add_argument("-o", "--out_figure",type=str,default='props.jpg', help="Out figure name")
+parser.add_argument("-p", "--properties",  nargs="+", type=str, help="Properties to plot")
 parser.add_argument("-n", "--step_number",type=int,default=10, help="Plot every this number of time steps")
 parser.add_argument("-bs", "--begin_step",type=int,default=0, help="Begin time step")
 parser.add_argument("-es", "--end_step",type=int,default=-1, help="End time step")
+parser.add_argument("-rn", "--run_number",type=int,default=-1, help="Lammps simulations commonly involve several run-commands. Here you may choose what run you want the log data from. Default of :code:`-1` returns data from all runs concatenated")
 args = parser.parse_args()
 
 log = lammps_logfile.File(args.input_file)
@@ -24,28 +26,38 @@ n = args.step_number
 begin = args.begin_step
 end = args.end_step
 
-fig, ax = plt.subplots(4,1,figsize=(12,20),sharex=True)
+if args.properties:
+    props = args.properties
+else:
+    props = ["Temp", "Press", "PotEng", "TotEng"]
+
+props_num = len(props)
+
+fig, ax = plt.subplots(props_num,1,figsize=(10, 5*props_num),sharex=True)
 fig.subplots_adjust(hspace=0.10)
 
-for index, i in enumerate(["Temp", "Press", "PotEng", "TotEng"]):
-    x = log.get("Step")
-    y = log.get(i)
-    if i == "Press":
-        y /= 1e4
-        avg_p = np.mean(y)
-    avgy = np.mean(y)
-    if i == "Temp":
-        avg_t = avgy
+for index, i in enumerate(props):
+    x = log.get("Step", run_num=args.run_number)
+    y = log.get(i, run_num=args.run_number)
+    avgy = np.mean(y[begin:end])
     ax[index].plot(x[begin:end:n], y[begin:end:n])
+    if begin == 0:
+        avgy = np.mean(y[-1000:end])
     ax[index].axhline(avgy, c = 'k', ls = '--', alpha = 0.7)
     ax[index].set_title(i + ' = ' + "%.2f" % (avgy))
     ax[index].set_ylabel(i)
+    if i == "Press":
+        avg_p = avgy / 1e4
+    if i == "Temp":
+        avg_t = avgy
 
-ax[3].set_xlabel('Step')
+ax[-1].set_xlabel('Step')
 
 plt.savefig(f, dpi=300, bbox_inches='tight')
 plt.show()
-with open("Temp.txt", "w") as file:
-    file.write(str(avg_t))
-with open("Press.txt", "w") as file:
-    file.write(str(avg_p))
+
+if not args.properties:
+    with open("Temp.txt", "w") as file:
+        file.write(str(avg_t))
+    with open("Press.txt", "w") as file:
+        file.write(str(avg_p))
