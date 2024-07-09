@@ -45,11 +45,11 @@ for i in int_dirs:
         for ele in ele_list:
             Info[ele] = int(Info[i][ele]['s'] + Info[i][ele]['l'] + Info[i][ele]['i'])
 
-mean_chi, std_chi = np.mean([Info[i]['chi'] for i in int_dirs]), np.std([Info[i]['chi'] for i in int_dirs])
+sorted_chi = np.sort([Info[i]['chi'] for i in int_dirs])
 
 int_dirs_selected = []
 for i in int_dirs:
-    if Info[i]['chi'] > mean_chi - std_chi:
+    if Info[i]['chi'] > sorted_chi[int(len(int_dirs)*0.2)]:
         int_dirs_selected.append(i)
         atomic_fraction_data = np.loadtxt(path + str(i) + '/atomic_fraction.txt', unpack=True)
         ele_list = ['Mg', 'O', 'Fe', 'W']

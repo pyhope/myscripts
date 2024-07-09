@@ -1,71 +1,74 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Created on Sun Oct 22 23:56:03 2022
-@author: Yihang Peng
-"""
-
 import numpy as np
 import argparse
 
+# Argument parser setup
 parser = argparse.ArgumentParser()
-parser.add_argument("--input_filename","-i",type=str, default = 'log.lammps' ,help="input filename (log.lammps)")
-parser.add_argument("--startstep","-st",type=int, default = 5000 ,help="start step (5000)")
-parser.add_argument("--temperature","-t",type=float, default = 2 ,help="temperature (1e3*K)")
-parser.add_argument("--pressure","-p",type=float, default = 25 ,help="pressure (GPa)")
+parser.add_argument("--input_filename", "-i", type=str, default='log.lammps', help="input filename (log.lammps)")
+parser.add_argument("--startstep", "-st", type=int, default=5000, help="start step (5000)")
 
-args   = parser.parse_args()
-targ_temp = 1000 * args.temperature
-targ_pres = 10000 * args.pressure
-temp_err = targ_temp * 0.01
-pres_err = targ_pres * 0.01
-stsp = args.startstep
+args = parser.parse_args()
 
+def check_convertible_to_int(s: str) -> int:
+    try:
+        int(s)  # Try to convert the string to an integer
+        return True
+    except ValueError:
+        return False
+
+# Open and read the input file
 datain = open(args.input_filename, "r")
 
+# Skip lines until reaching the step data
 line = datain.readline()
 while line:
-    line = datain.readline()
-    if line.rstrip().split() == []:
-        continue
-    if line.rstrip().split()[0] == 'dump_modify':
+    if "Step" in line.split():
         break
-while line:
     line = datain.readline()
-    if line.rstrip().split() == []:
-        continue
-    if line.rstrip().split()[0] == 'Step':
-        break
-flag = 0
-Goodstep = dict()
-gsinfo = dict()
-line = datain.readline()
-while line:
-    line = datain.readline()
-    if line.rstrip().split()[0] == 'Loop':
-        break
-    if int(line.rstrip().split()[0]) >= stsp:
-        step = int(line.rstrip().split()[0])
-        eng = float(line.rstrip().split()[3])
-        temp = float(line.rstrip().split()[4])
-        pres = float(line.rstrip().split()[5])
-        #print(temp, pres)
-        if temp > targ_temp - temp_err and temp < targ_temp + temp_err:
-            if pres > targ_pres - pres_err and pres < targ_pres + pres_err:
-                score = 10 / ( np.abs(((temp - targ_temp)/temp_err)) + np.abs(((pres - targ_pres)/pres_err)))
-                Goodstep[step] = score
-                gsinfo[step] = (eng, temp, pres, score)
-                print('STEP:', step, 'E:', eng, 'T:', temp, 'P:', pres, 'SCORE: %.2f' % ( Goodstep[step]))
-                flag = 1
 
-if flag == 0:
-    print("Not found")
+# Initialize variables
+Eng_sum, Temp_sum = 0, 0
+count = 0
+step_values = {}
+
+# Reading step data
+line = datain.readline()
+while line:
+    if line.rstrip().split():
+        step = line.rstrip().split()[0]
+        if check_convertible_to_int(step) and int(step) >= args.startstep:
+            TotEng = float(line.rstrip().split()[3])
+            Temp = float(line.rstrip().split()[4])
+            Eng_sum += TotEng
+            Temp_sum += Temp
+            count += 1
+            step_values[step] = (TotEng, Temp)
+    line = datain.readline()
+
+# Calculating average
+if count > 0:
+    average_Eng = Eng_sum / count
+    average_Temp = Temp_sum / count
+
+else:
+    print("No data found after specified start step.")
     exit()
 
-beststep = max(Goodstep, key=Goodstep.get)
-print('*' * 100)
-print('BEST_STEP:', beststep, 'E:', gsinfo[beststep][0], 'T:', gsinfo[beststep][1], 'P:', gsinfo[beststep][2], 'SCORE: %.2f' % (gsinfo[beststep][3]))
+# Finding step closest to average
+def calculate_distance(values, averages):
+    return sum((v/a - 1) ** 2 for v, a in zip(values, averages)) ** 0.5
 
-dataout = open('BEST_STEP', "w")
-dataout.write(str(beststep))
+closest_step = min(step_values, key=lambda x: calculate_distance(step_values[x], (average_Eng, average_Temp)))
+
+# Output results
+print('*' * 100)
+val1, val2 = step_values[closest_step]
+print(f'Closest step to average: {closest_step}, total energy: {val1}, temperature: {val2}')
+print(f'Average total energy: {average_Eng}, Average temperature: {average_Temp}')
+
+# Write result to a file
+output_filename = 'BEST_STEP'
+with open(output_filename, "w") as dataout:
+    dataout.write(str(closest_step))
