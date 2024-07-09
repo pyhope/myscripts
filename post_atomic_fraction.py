@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--path", "-p", type=str, default='./', help="Path to the directories")
 parser.add_argument("--xmin", "-x1", type=float, default=-8, help="Minimum value of x-axis (proximity)")
 parser.add_argument("--xmax", "-x2", type=float, default=17, help="Maximum value of x-axis (proximity)")
-parser.add_argument("--xnum", "-xn", type=int, default=2501, help="Info[i]ber of data points in x-axis (proximity)")
+parser.add_argument("--xnum", "-xn", type=int, default=25001, help="Info[i]ber of data points in x-axis (proximity)")
 parser.add_argument("--output_pkl", "-o", type=str, default='data.pkl', help="Output file for the final data in pkl format")
 
 args = parser.parse_args()
@@ -114,11 +114,11 @@ with open(path + str(int_dirs[-1]) + '/selected.dump', 'r') as file:
         print("Error: Inconsistent number of atoms")
         exit()
 
-System = {'n_atoms': n_atoms, 'Mg': Info['Mg'], 'O': Info['O'], 'Fe': Info['Fe'], 'W': Info['W'], 'L_x': L_x, 'L_y': L_y, 'L_z': L_z, 'V': V}
+lw = np.mean([Info[i]['lw'] for i in int_dirs_selected])
+System = {'n_atoms': n_atoms, 'Mg': Info['Mg'], 'O': Info['O'], 'Fe': Info['Fe'], 'W': Info['W'], 'L_x': L_x, 'L_y': L_y, 'L_z': L_z, 'V': V, 'lw': lw}
 with open('system.txt', 'w') as file:
-    file.write('n_atoms Mg O Fe W L_x/A L_y/A L_z/A V/A^3\n')
-    file.write(f'{n_atoms} {Info["Mg"]} {Info["O"]} {Info["Fe"]} {Info["W"]} {L_x:.4f} {L_y:.4f} {L_z:.4f} {V:.1f}\n')
-
+    file.write('n_atoms Mg O Fe W L_x/A L_y/A L_z/A V/A^3 lw/A\n')
+    file.write(f'{n_atoms} {Info["Mg"]} {Info["O"]} {Info["Fe"]} {Info["W"]} {L_x:.4f} {L_y:.4f} {L_z:.4f} {V:.1f} {lw:.4f}\n')
 
 final_data = [combined_array.T, Counts, System]
 with open(args.output_pkl, 'wb') as file:
