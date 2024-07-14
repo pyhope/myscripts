@@ -1,4 +1,0 @@
-#!/bin/bash
-
-log_lmp.py -i log.lammps -y v_jhx v_jhy v_jhz -s -p
-time_conv.py -conf 'nve.lmp' -of ${1:-'log.kappa'} -s -sfig

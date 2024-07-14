@@ -1,0 +1,32 @@
+#!/bin/bash
+
+dirs=($(ls -d */ | sort -V))
+
+group_size=10
+
+group_counter=1
+
+index=0
+
+while [ $index -lt ${#dirs[@]} ]; do
+end_index=$((index + group_size))
+
+if [ $end_index -ge ${#dirs[@]} ]; then
+end_index=${#dirs[@]}
+fi
+
+group_dirs=(${dirs[@]:$index:$((end_index - index))})
+
+if [ ${#group_dirs[@]} -le 2 ] && [ $group_counter -gt 1 ]; then
+group_counter=$((group_counter - 1))
+prev_group="group$group_counter"
+mv "${group_dirs[@]}" $prev_group/
+else
+group_name="group$group_counter"
+mkdir $group_name
+mv "${group_dirs[@]}" $group_name/
+group_counter=$((group_counter + 1))
+fi
+
+index=$end_index
+done

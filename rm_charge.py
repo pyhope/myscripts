@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Remove charge column from LAMMPS data file")
 parser.add_argument("--input_file", "-i", type=str, default="MgO.lmp",  help="input filename")
 parser.add_argument("--output_file", "-o", type=str, default="MgO_atomic.lmp",  help="output filename")
 args = parser.parse_args()

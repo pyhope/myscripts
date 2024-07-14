@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+group_dirs=$(ls -d group*/)
+
+for group in $group_dirs; do
+    mv "$group"/* .
+    rm -rf "$group"
+done

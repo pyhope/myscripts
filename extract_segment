@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import argparse
+parser = argparse.ArgumentParser(description="Extract a segment from a LAMMPS dump file based on timesteps.")
+parser.add_argument("--input_file", "-i", type=str, default='nvt.dump', help="Original dump filename")
+parser.add_argument("--output_file", "-o", type=str, default='segment.dump', help="New dump filename")
+parser.add_argument("--start_step", "-ss", type=int, help="The starting timestep of the segment to be extracted")
+parser.add_argument("--end_step", "-es", type=int, help="The ending timestep of the segment to be extracted (this step is not included in the new dump file)")
+
+args = parser.parse_args()
+
+start_step = str(args.start_step) if args.start_step is not None else None
+end_step = str(args.end_step) if args.end_step is not None else None
+
+with open(args.input_file, 'r') as datain:
+    with open(args.output_file, 'w') as dataout:
+        inside_segment = False if start_step is not None else True
+        line = datain.readline()
+
+        while line:
+            if line.rstrip() == "ITEM: TIMESTEP":
+                timestep = datain.readline().strip()
+                if start_step is not None and timestep == start_step:
+                    inside_segment = True
+                if end_step is not None and timestep == end_step:
+                    inside_segment = False
+                    break
+
+                if inside_segment:
+                    dataout.write(line)
+                    dataout.write(timestep + '\n')
+                line = datain.readline()
+            else:
+                if inside_segment:
+                    dataout.write(line)
+                line = datain.readline()

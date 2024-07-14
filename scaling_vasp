@@ -5,7 +5,7 @@ if [ -z $3 ]; then
     exit 1
 fi
 
-cp -r ./t2p25/ ./${1}-${2}-${3}-t2p25/
-cd ${1}-${2}-${3}-t2p25/
-cat ../t2p25/run.slurm | sed -e "s/job-name=1-20-1/job-name=${1}-${2}-${3}/g" -e "s/nodes=1/nodes=${1}/g" -e "s/ntasks-per-node=20/ntasks-per-node=${2}/g" -e "s/cpus-per-task=1/cpus-per-task=${3}/g"> ./run.slurm
+cp -r ./_inputs/ ./${1}-${2}-${3}/
+cd ${1}-${2}-${3}/
+cat ../_inputs/run.slurm | sed -e "s/job-name=1-20-1/job-name=${1}-${2}-${3}/g" -e "s/nodes=1/nodes=${1}/g" -e "s/ntasks-per-node=20/ntasks-per-node=${2}/g" -e "s/cpus-per-task=1/cpus-per-task=${3}/g"> ./run.slurm
 sbatch run.slurm
