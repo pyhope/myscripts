@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--path", "-p", type=str, default='./', help="Path to the directories")
 parser.add_argument("--xmin", "-x1", type=float, default=-8, help="Minimum value of x-axis (proximity)")
 parser.add_argument("--xmax", "-x2", type=float, default=17, help="Maximum value of x-axis (proximity)")
-parser.add_argument("--xnum", "-xn", type=int, default=25001, help="Info[i]ber of data points in x-axis (proximity)")
+parser.add_argument("--xnum", "-xn", type=int, default=25001, help="Number of data points in x-axis (proximity)")
 parser.add_argument("--output_pkl", "-o", type=str, default='data.pkl', help="Output file for the final data in pkl format")
 
 args = parser.parse_args()
