@@ -41,7 +41,7 @@ while line:
                     if not line or "ITEM: TIMESTEP" in line:
                         break
                     dataout.write(line)
-    
+            continue
     line = datain.readline()
 
 datain.close()
