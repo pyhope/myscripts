@@ -17,7 +17,7 @@ fi
 
 group_dirs=(${dirs[@]:$index:$((end_index - index))})
 
-if [ ${#group_dirs[@]} -le 2 ] && [ $group_counter -gt 1 ]; then
+if [ ${#group_dirs[@]} -le 3 ] && [ $group_counter -gt 1 ]; then
 group_counter=$((group_counter - 1))
 prev_group="group$group_counter"
 mv "${group_dirs[@]}" $prev_group/
