@@ -1,14 +1,25 @@
 #!/bin/bash
 
-# mkdir nvt
+if [ $1 == "-iso" ]; then
+  l=$(head -n 1 L.dat)
+else
+  lx=$(head -n 1 L.dat)
+  ly=$(head -n 2 L.dat | tail -n 1)
+  lz=$(tail -n 1 L.dat)
+fi
 
-l=$(head -n 1 L.dat)
+
+mkdir nvt
 
 cp CONTCAR nvt/POSCAR
 
 sed -i '/Lattice velocities and vectors/Q' nvt/POSCAR
 
-new_matrix=$(printf "%0.4f 0.0000 0.0000\n0.0000 %0.4f 0.0000\n0.0000 0.0000 %0.4f\n" $l $l $l)
+if [ $1 == "-iso" ]; then
+  new_matrix=$(printf "%0.6f 0.000000 0.000000\n0.000000 %0.6f 0.000000\n0.000000 0.000000 %0.6f\n" $l $l $l)
+else
+  new_matrix=$(printf "%0.6f 0.000000 0.000000\n0.000000 %0.6f 0.000000\n0.000000 0.000000 %0.6f\n" $lx $ly $lz)
+fi
 
 {
   head -n 2 nvt/POSCAR
