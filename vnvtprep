@@ -8,7 +8,6 @@ else
   lz=$(tail -n 1 L.dat)
 fi
 
-
 mkdir nvt
 
 cp CONTCAR nvt/POSCAR
