@@ -183,7 +183,7 @@ ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 ax[1].legend()
 #ax[1].set_ylim([0,3.5])
 ax[1].set_xlim(min(tcorr[np.nonzero(tcorr)]), tl[0] * 1000 / 2)
-ax[1].set_ylim(bottom = 0, top = 8, auto = True)
+ax[1].set_ylim(bottom = 0, top = 20, auto = True)
 
 ax[1].set_xscale('log')
 

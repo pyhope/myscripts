@@ -41,7 +41,7 @@ for i in int_dirs:
         for ele_index, ele in enumerate(ele_list):
             Info[i][ele]['s'], Info[i][ele]['l'], Info[i][ele]['i'] = atomic_num_data[ele_index*3+1], atomic_num_data[ele_index*3+2], atomic_num_data[ele_index*3+3]
     Info[i]['lw'], Info[i]['chi'] = atomic_num_data[13], atomic_num_data[14]
-    if i == int_dirs[0]:
+    if i == int_dirs[-1]:
         for ele in ele_list:
             Info[ele] = int(Info[i][ele]['s'] + Info[i][ele]['l'] + Info[i][ele]['i'])
 
@@ -49,7 +49,7 @@ sorted_chi = np.sort([Info[i]['chi'] for i in int_dirs])
 
 int_dirs_selected = []
 for i in int_dirs:
-    if Info[i]['chi'] > sorted_chi[int(len(int_dirs)*0.2)]:
+    if Info[i]['chi'] < sorted_chi[int(len(int_dirs)*0.6)]:
         int_dirs_selected.append(i)
         atomic_fraction_data = np.loadtxt(path + str(i) + '/atomic_fraction.txt', unpack=True)
         ele_list = ['Mg', 'O', 'Fe', 'W']
@@ -72,8 +72,8 @@ for i in int_dirs:
         for key in Results[i].keys():
             f[key] = interp1d(x, Results[i][key][indices], kind='linear', fill_value="extrapolate")
             Results[i][key] = f[key](xnew)
-    else:
-        print(f"Skipping {i} due to low chi value ({Info[i]['chi']})")
+    # else:
+    #     print(f"Skipping {i} due to high chi value ({Info[i]['chi']})")
 
 average = dict()
 for key in Results[int_dirs_selected[0]].keys():
@@ -115,10 +115,15 @@ with open(path + str(int_dirs[-1]) + '/selected.dump', 'r') as file:
         exit()
 
 lw = np.mean([Info[i]['lw'] for i in int_dirs_selected])
-System = {'n_atoms': n_atoms, 'Mg': Info['Mg'], 'O': Info['O'], 'Fe': Info['Fe'], 'W': Info['W'], 'L_x': L_x, 'L_y': L_y, 'L_z': L_z, 'V': V, 'lw': lw}
+chi = np.mean([Info[i]['chi'] for i in int_dirs_selected])
+print(os.path.abspath(path))
+print('lw:', lw)
+print('chi:', chi)
+print('*'*50)
+System = {'n_atoms': n_atoms, 'Mg': Info['Mg'], 'O': Info['O'], 'Fe': Info['Fe'], 'W': Info['W'], 'L_x': L_x, 'L_y': L_y, 'L_z': L_z, 'V': V, 'lw': lw, 'chi': chi}
 with open('system.txt', 'w') as file:
-    file.write('n_atoms Mg O Fe W L_x/A L_y/A L_z/A V/A^3 lw/A\n')
-    file.write(f'{n_atoms} {Info["Mg"]} {Info["O"]} {Info["Fe"]} {Info["W"]} {L_x:.4f} {L_y:.4f} {L_z:.4f} {V:.1f} {lw:.4f}\n')
+    file.write('n_atoms Mg O Fe W L_x/A L_y/A L_z/A V/A^3 lw/A chi\n')
+    file.write(f'{n_atoms} {Info["Mg"]} {Info["O"]} {Info["Fe"]} {Info["W"]} {L_x:.4f} {L_y:.4f} {L_z:.4f} {V:.1f} {lw:.4f} {chi:.4f}\n')
 
 final_data = [combined_array.T, Counts, System]
 with open(args.output_pkl, 'wb') as file:
