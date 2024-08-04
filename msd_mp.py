@@ -25,6 +25,8 @@ parser.add_argument("--timestep","-ts",type = int,default = 1, help="timestep")
 parser.add_argument("--nptfile","-nptf",type=str, default = './npt.lmp', help="npt.lmp file")
 parser.add_argument("--npt_atom_style","-nptas",type=str, default = 'id type q x y z', help="npt.lmp file atom style")
 parser.add_argument("--boundary2", "-b2", default=False, action='store_true', help="Defualt: calculate the center boundary")
+parser.add_argument("--boundary3", "-b3", default=False, action='store_true', help="Defualt: calculate the center boundary")
+parser.add_argument("--boundary4", "-b4", default=False, action='store_true', help="Defualt: calculate the center boundary")
 parser.add_argument("--start","-s",type = int, default = 0, help="start frame")
 
 args   = parser.parse_args()
@@ -133,6 +135,12 @@ for ele in ele_sel:
             by_new = str(box_dim[1] / 2 - float(by))
             by2_new = str(box_dim[1] - float(by_new))
             idx = u_npt.select_atoms('type '+ele+' and prop x > '+bx+' and prop x < '+bx2+' and (prop y < '+by_new+' or prop y > '+by2_new+') and prop z > '+bz+' and prop z < '+bz2).indices
+        elif args.boundary3:
+            by3 = str(box_dim[1]/2 - float(by))
+            idx = u_npt.select_atoms('type '+ele+' and prop y > '+by+' and prop y < '+by3).indices
+        elif args.boundary4:
+            by4 = str(box_dim[1]/2 + float(by))
+            idx = u_npt.select_atoms('type '+ele+' and prop y > '+by4+' and prop y < '+by2).indices
         else:
             idx = u_npt.select_atoms('type '+ele+' and prop x > '+bx+' and prop x < '+bx2+' and prop y > '+by+' and prop y < '+by2+' and prop z > '+bz+' and prop z < '+bz2).indices
     print()
