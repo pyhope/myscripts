@@ -29,7 +29,7 @@ while line:
     line = datain.readline()
 
 # Initialize variables
-Eng_sum, Temp_sum = 0, 0
+PotEng_sum, KinPotEng_sum = 0, 0
 count = 0
 step_values = {}
 
@@ -39,18 +39,18 @@ while line:
     if line.rstrip().split():
         step = line.rstrip().split()[0]
         if check_convertible_to_int(step) and int(step) >= args.startstep:
-            TotEng = float(line.rstrip().split()[3])
-            Temp = float(line.rstrip().split()[4])
-            Eng_sum += TotEng
-            Temp_sum += Temp
+            PotEng = float(line.rstrip().split()[1])
+            KinEng = float(line.rstrip().split()[2])
+            PotEng_sum += PotEng
+            KinPotEng_sum += KinEng
             count += 1
-            step_values[step] = (TotEng, Temp)
+            step_values[step] = (PotEng, KinEng)
     line = datain.readline()
 
 # Calculating average
 if count > 0:
-    average_Eng = Eng_sum / count
-    average_Temp = Temp_sum / count
+    average_PotEng = PotEng_sum / count
+    average_KinEng = KinPotEng_sum / count
 
 else:
     print("No data found after specified start step.")
@@ -60,13 +60,13 @@ else:
 def calculate_distance(values, averages):
     return sum((v/a - 1) ** 2 for v, a in zip(values, averages)) ** 0.5
 
-closest_step = min(step_values, key=lambda x: calculate_distance(step_values[x], (average_Eng, average_Temp)))
+closest_step = min(step_values, key=lambda x: calculate_distance(step_values[x], (average_PotEng, average_KinEng)))
 
 # Output results
 print('*' * 100)
 val1, val2 = step_values[closest_step]
-print(f'Closest step to average: {closest_step}, total energy: {val1}, temperature: {val2}')
-print(f'Average total energy: {average_Eng}, Average temperature: {average_Temp}')
+print(f'Closest step to average: {closest_step}, potential energy: {val1}, kinetic energy: {val2}')
+print(f'Average potential energy: {average_PotEng}, Average kinetic energy: {average_KinEng}')
 
 # Write result to a file
 output_filename = 'BEST_STEP'
