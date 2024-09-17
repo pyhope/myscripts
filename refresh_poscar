@@ -1,0 +1,6 @@
+#!/bin/bash
+
+file=${1:-'POSCAR'}
+number_of_ions=$(awk 'NR==7 {for(i=1;i<=NF;i++) if($i ~ /^[0-9]+$/) sum+=$i} END {print sum}' "$file")
+line_to_delete=$((9 + number_of_ions))
+sed -i "$line_to_delete,\$d" "$file"
