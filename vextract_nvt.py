@@ -4,45 +4,48 @@
 import os
 import argparse
 
-parser = argparse.ArgumentParser(description="Calculate the average distance between helium atoms")
+parser = argparse.ArgumentParser(description="Extract configurations from an XDATCAR file")
 parser.add_argument("--input_file", "-i", type=str, default="./XDATCAR",  help="Path to the XDATCAR file")
+parser.add_argument("--output_dir", "-o", type=str, default="./frames", help="directory for the output POSCAR files")
 parser.add_argument("--frequency", "-f", type=int, default=100, help="Frequency of configurations to extract")
+parser.add_argument("--num_frames", "-n", type=int, default=5, help="Number of configurations to extract")
 args = parser.parse_args()
 
-def extract_configurations(file_content):
-    # Split the content by the configuration header
-    splits = file_content.split("Direct configuration=")
-    head = splits[0]
-    configurations = splits[1:]
+def extract_frames_from_xdatcar(xdatcar_file, output_dir, interval, num_frames):
+    with open(xdatcar_file, 'r') as file:
+        lines = file.readlines()
 
-    # Filter configurations every 200
-    desired_configurations = {i: config for i, config in enumerate(configurations, 1) if i % args.frequency == 0}
-    
-    return head, desired_configurations
+    header = lines[:7]
+    num_atoms_line = lines[6]
 
-def write_to_files(head, configurations):
-    parent_dir = "Extracted_Configurations"
+    config_indices = [i for i, line in enumerate(lines) if line.startswith("Direct configuration=")]
     
-    # Ensure the directory exists or create it
-    if not os.path.exists(parent_dir):
-        os.mkdir(parent_dir)
-    
-    for i, config in configurations.items():
-        directory_name = f"{i}"
-        directory_path = os.path.join(parent_dir, directory_name)
+    total_configs = len(config_indices)
+    if total_configs == 0:
+        raise ValueError("No \'Direct configuration\' found.")
+
+    selected_configs = []
+    for i in range(total_configs - 1, -1, -interval):
+        selected_configs.append(config_indices[i])
+        if len(selected_configs) == num_frames:
+            break
+
+    if len(selected_configs) < num_frames:
+        raise ValueError(f"Insufficient configurations in XDATCAR to extract {num_frames} frames with interval {interval}")
+
+    num_atoms = sum(map(int, num_atoms_line.split()))
+    for idx, config_index in enumerate(selected_configs):
+        frame_lines = header + ['Direct\n']
         
-        # Ensure the directory exists or create it
-        if not os.path.exists(directory_path):
-            os.mkdir(directory_path)
-        
-        with open(os.path.join(directory_path, "POSCAR"), 'w') as f:
-            # Write the head and the current configuration
-            f.write(head)
-            f.write("Direct configuration=" + config)
+        frame_lines += lines[config_index + 1 : config_index + 1 + num_atoms]
 
-if __name__ == "__main__":
-    with open(args.input_file, 'r') as f:
-        content = f.read()
+        config_num = lines[config_index].split()[-1]
+        poscar_filename = f"{output_dir}/POSCAR.{config_num}"
+        with open(poscar_filename, 'w') as poscar_file:
+            poscar_file.writelines(frame_lines)
+        print(f"Configuration {config_num} written to {poscar_filename}")
 
-    head, configs = extract_configurations(content)
-    write_to_files(head, configs)
+if not os.path.exists(args.output_dir):
+    os.makedirs(args.output_dir)
+
+extract_frames_from_xdatcar(args.input_file, args.output_dir, args.frequency, args.num_frames)
