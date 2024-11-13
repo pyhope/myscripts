@@ -40,7 +40,7 @@ def extract_frames_from_xdatcar(xdatcar_file, output_dir, interval, num_frames):
         frame_lines += lines[config_index + 1 : config_index + 1 + num_atoms]
 
         config_num = lines[config_index].split()[-1]
-        poscar_filename = f"{output_dir}/POSCAR.{config_num}"
+        poscar_filename = f"{output_dir}/POSCAR.{idx + 1}"
         with open(poscar_filename, 'w') as poscar_file:
             poscar_file.writelines(frame_lines)
         print(f"Configuration {config_num} written to {poscar_filename}")
