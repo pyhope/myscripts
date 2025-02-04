@@ -9,10 +9,12 @@ else
 fi
 
 mkdir nvt
+cd nvt
 
-cp CONTCAR nvt/POSCAR
+cp ../CONTCAR POSCAR
+cp ../POSCAR POSCAR.orig
 
-sed -i '/Lattice velocities and vectors/Q' nvt/POSCAR
+sed -i '/Lattice velocities and vectors/Q' POSCAR
 
 if [[ $1 == "-iso" ]]; then
   new_matrix=$(printf "%0.6f 0.000000 0.000000\n0.000000 %0.6f 0.000000\n0.000000 0.000000 %0.6f\n" $l $l $l)
@@ -21,7 +23,13 @@ else
 fi
 
 {
-  head -n 2 nvt/POSCAR
+  head -n 2 POSCAR
   echo "$new_matrix"
-  tail -n +6 nvt/POSCAR
-} > nvt/POSCAR.tmp && mv nvt/POSCAR.tmp nvt/POSCAR
+  if [[ $1 == "-restart" ]]; then
+    tail -n +6 POSCAR.orig
+  else
+    tail -n +6 POSCAR
+  fi
+} > POSCAR.tmp && mv POSCAR.tmp POSCAR
+
+rm POSCAR.orig
