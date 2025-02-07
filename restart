@@ -13,30 +13,38 @@ New_dir=$2 # the directory name for a new run
 mkdir $New_dir
 cd $Previous_dir
 file_list=(`ls restart`) # A list of all file names in this directory
-index=0
-declare -a step_list
-for file_name in ${file_list[*]}
-    do
-    file_extension=${file_name##*.} # Extract the extension part (string after the last '.') of the file name
-    if [ "$file_extension" -gt 0 ] 2>/dev/null ;then # Check if the file extension is a number
-        step_list[index]=$file_extension # If so, store the numbers in a list
-        index=`expr $index + 1`
-    fi
-    done
-max=${step_list[0]}
-for (( k=0;k<${#step_list[*]};k++))
-    do
-    [[ ${max} -lt ${step_list[$k]} ]] && max=${step_list[$k]}
-    done
-echo $max # Find the maximum in the step_list array
-cp restart/poly.restart.$max ../$New_dir
+
+if [ ${#file_list[*]} -eq 0 ]; then
+    echo Restart directory is empty! Copying poly.restart2 instead.
+    restart_file=poly.restart2
+    cp $restart_file ../$New_dir
+else
+    index=0
+    declare -a step_list
+    for file_name in ${file_list[*]}
+        do
+        file_extension=${file_name##*.} # Extract the extension part (string after the last '.') of the file name
+        if [ "$file_extension" -gt 0 ] 2>/dev/null ;then # Check if the file extension is a number
+            step_list[index]=$file_extension # If so, store the numbers in a list
+            index=`expr $index + 1`
+        fi
+        done
+    max=${step_list[0]}
+    for (( k=0;k<${#step_list[*]};k++))
+        do
+        [[ ${max} -lt ${step_list[$k]} ]] && max=${step_list[$k]}
+        done
+    echo $max # Find the maximum in the step_list array
+    restart_file=poly.restart.$max
+    cp restart/$restart_file ../$New_dir
+fi
 cp run.slurm ../$New_dir
 
 # Check if Previous_dir is 'nvt' and modify in.lammps accordingly
 if [ "$Previous_dir" = "nvt" ]; then
-    cat in.lammps | sed -e "/read_data/s/.*/read_restart poly.restart.$max/" > ../$New_dir/in.lammps
+    cat in.lammps | sed -e "/read_data/s/.*/read_restart $restart_file/" > ../$New_dir/in.lammps
 else
-    cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/poly.restart.$max/}" > ../$New_dir/in.lammps
+    cat in.lammps | sed -e "/read_restart/{s/poly.restart.*/$restart_file/}" > ../$New_dir/in.lammps
 fi
 
 cd ../$New_dir
