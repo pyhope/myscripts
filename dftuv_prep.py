@@ -144,3 +144,4 @@ for line in print_lines:
 
 with open(args.v_output_file, 'w') as f:
     f.write("\n".join(output_lines))
+    f.write("\n")
