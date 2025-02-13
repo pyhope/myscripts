@@ -5,7 +5,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 import argparse
 
-parser = argparse.ArgumentParser(description="")
+parser = argparse.ArgumentParser(description="Compute Fe-O distance pairs and estimate Hubbard V values in a Quantum Espresso structure file.")
 parser.add_argument("--input_file", "-i", type=str, default="conf.qe")
 parser.add_argument("--output_file", "-o", type=str, default="sorted.qe")
 parser.add_argument("--v_output_file", "-v", type=str, default="V.txt")
