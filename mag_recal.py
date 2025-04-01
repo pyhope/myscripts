@@ -11,7 +11,7 @@ parser.add_argument("--directory_num", "-n", type=int, default=10,  help="Direct
 args = parser.parse_args()
 
 Fe_idx = args.Fe_idx
-dir_name = args.directory_name
+dir_name = args.subdirectory_name
 dir_num = args.directory_num
 
 def process_outcar_in_dir(directory):
