@@ -1,13 +1,13 @@
 #!/bin/bash
 
-input_filename=${1:-'md'}
-output_filename=${2:-'traj'}
-unit=$3
+unit=${1:-'A'}
+input_filename=${2:-'md'}
+output_filename=${3:-'traj'}
 
 atomsk --unfold $input_filename.out exyz
 ls *.xyz | sort -V > xyz.lst
 
-if [ "$unit" == "A" ]; then
+if [ "$unit" == "B" ]; then
 for i in $(cat xyz.lst); do
 atomsk $i -unit Bohr Angstroms $i-tmp.exyz
 mv $i-tmp.xyz $i
