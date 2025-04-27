@@ -38,6 +38,7 @@ values = [float(line.strip()) for line in lines if line.strip()]
 # Calculate the mean and standard deviation
 mean_value = np.mean(values)
 std_value = np.std(values)
+number_of_values = len(values)
 
 plt.subplots(figsize=(8, 8))
 values = np.loadtxt(filename)
@@ -55,4 +56,12 @@ if prop == "volume":
         f.write(f"{np.cbrt(mean_value):.6f}\n")
         f.write(f"{mean_value:.6f}\n")
         f.write(f"{std_value:.6f}\n")
+if prop == "pressure":
+    with open("P.dat", "w") as f:
+        f.write(f"{mean_value:.6f}\n")
+        f.write(f"N = {number_of_values}\n")
+if prop == "energy":
+    with open("E.dat", "w") as f:
+        f.write(f"{mean_value:.6f}\n")
+        f.write(f"N = {number_of_values}\n")
 print(f"Standard Deviation: {std_value:.4f}")

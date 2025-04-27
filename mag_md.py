@@ -4,7 +4,7 @@
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--Fe_idx", "-i", type=int, default=160,  help="Index of the Fe atom")
-parser.add_argument("--directory_name", "-d", type=str, default="./normal",  help="Directory name")
+parser.add_argument("--directory_name", "-d", type=str, default="./",  help="Directory name")
 
 args = parser.parse_args()
 
