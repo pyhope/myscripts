@@ -38,11 +38,10 @@ def read_poscar(filename):
         'coordinates': coords
     }
 
-def cartesian_to_fractional(cart_coords, lattice):
-    inv_lattice = np.linalg.inv(lattice.T)
-    return np.dot(cart_coords, inv_lattice)
+def fractional_to_cartesian(frac_coords, lattice):
+    return np.dot(frac_coords, lattice.T)
 
-def write_poscar(data, frac_coords, output_filename):
+def write_poscar(data, cart_coords, output_filename):
     with open(output_filename, 'w') as f:
         f.write(f"{data['system']}\n")
         f.write("1.000000\n")
@@ -50,15 +49,16 @@ def write_poscar(data, frac_coords, output_filename):
             f.write(f"  {vec[0]:.9f}  {vec[1]:.9f}  {vec[2]:.9f}\n")
         f.write("  " + "  ".join(data['elements']) + "\n")
         f.write("  " + "  ".join(map(str, data['counts'])) + "\n")
-        f.write("Direct\n")
-        for coord in frac_coords:
+        f.write("Cartesian\n")
+        for coord in cart_coords:
             f.write(f"  {coord[0]:.9f}  {coord[1]:.9f}  {coord[2]:.9f}\n")
+
 
 poscar_file = args.input_file
 data = read_poscar(poscar_file)
-if data['coord_type'] == 'cartesian':
-    frac_coords = cartesian_to_fractional(data['coordinates'], data['lattice'])
-    write_poscar(data, frac_coords, output_filename=args.output_file)
-    print("Conversion completed. Output written to 'POSCAR_direct'.")
+if data['coord_type'] == 'direct':
+    cart_coords = fractional_to_cartesian(data['coordinates'], data['lattice'])
+    write_poscar(data, cart_coords, output_filename=args.output_file)
+    print("Conversion completed. Output written to 'POSCAR_cartesian'.")
 else:
-    print("POSCAR is already in Direct format. No conversion needed.")
+    print("POSCAR is already in Cartesian format. No conversion needed.")
