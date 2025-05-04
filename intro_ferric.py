@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--element_a", "-a", type=str, default="Si", help="Target atom A (default: Si)")
     parser.add_argument("--element_b", "-b", type=str, default="Fe", help="Neighbor atom B (default: Fe)")
     parser.add_argument("--element_c", "-c", type=str, default="Al", help="Replacement element C (default: Al)")
+    parser.add_argument("--element_d", "-d", type=str, default="Mg", help="Atoms after replacement during sorting (default: Mg)")
     parser.add_argument("--top_n", "-n", type=int, default=None, help="Number of A atoms to replace (default: half of B atoms)")
     parser.add_argument("--save_csv", "-s", action="store_true", default=False, help="Save replacement pairs to CSV file")
     parser.add_argument("--csv_filename", "-csv", type=str, default="replaced_pairs.csv", help="CSV file for replacement pairs (default: replaced_pairs.csv)")
@@ -53,6 +54,7 @@ def main():
     indices = list(range(len(element_list)))
     indices_a = [i for i, e in enumerate(element_list) if e == args.element_a]
     indices_b = [i for i, e in enumerate(element_list) if e == args.element_b]
+    indices_d = [i for i, e in enumerate(element_list) if e == args.element_d]
 
     if args.top_n is None:
         n_replace = len(indices_b) // 2
@@ -62,11 +64,16 @@ def main():
     tol = 1e-3
     all_pairs_info = []
     d1_values = []
+    a_d_distances = []
 
     # Analyze A atoms
     for ia in indices_a:
         a_pos = coords_cart[ia]
         distances = []
+        
+        for id in indices_d:
+            dist = pbc_distance(a_pos, coords_cart[id], lattice)
+            a_d_distances.append(dist)
 
         for ib in indices_b:
             b_pos = coords_cart[ib]
@@ -96,11 +103,15 @@ def main():
         print("No unique nearest neighbors found.")
         return
 
-    # Get global minimum d1
-    d1_min = min(d1_values)
+    # Get global minimum distance
+    d1_min = np.min(a_d_distances)
 
     # Filter A atoms with d1 ≈ d1_min
     d2_candidates = [(d2, d1, ia, ib) for (d1, d2, ia, ib) in all_pairs_info if abs(d1 - d1_min) < tol]
+    if not d2_candidates:
+        print(f"No {args.element_a} atoms found with d1 ≈ d1_min ({d1_min:.6f} Å).")
+        return
+
     d2_candidates.sort(reverse=True)
     selected = d2_candidates[:n_replace]
 
@@ -155,8 +166,9 @@ def main():
     for i in selected_a_indices:
             sorted_indices.append(i)
             comments[i] += f" => {args.element_c}"
+    sorted_indices += [i for i in indices_d]
     sorted_indices += [i for i in indices_a if i not in replaced_a_set]
-    sorted_indices += [i for i in indices if i not in indices_b and i not in indices_a]
+    sorted_indices += [i for i in indices if i not in indices_b and i not in indices_a and i not in indices_d]
 
     sorted_coords_cart = [coords_cart[i] for i in sorted_indices]
     sorted_coords_direct = cartesian_to_fractional(np.array(sorted_coords_cart), lattice)
@@ -167,7 +179,7 @@ def main():
     new_elements = []
     new_counts = []
 
-    for elem in [args.element_b, args.element_c, args.element_a]:
+    for elem in [args.element_b, args.element_c, args.element_d, args.element_a]:
         count = sorted_elements.count(elem)
         if count > 0:
             new_elements.append(elem)
