@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--element_c", "-c", type=str, default="Al", help="Replacement element C (default: Al)")
     parser.add_argument("--top_n", "-n", type=int, default=None, help="Number of A atoms to replace (default: half of B atoms)")
     parser.add_argument("--save_csv", "-s", action="store_true", default=False, help="Save replacement pairs to CSV file")
+    parser.add_argument("--csv_filename", "-csv", type=str, default="replaced_pairs.csv", help="CSV file for replacement pairs (default: replaced_pairs.csv)")
     args = parser.parse_args()
 
     # Load structure data
@@ -114,14 +115,27 @@ def main():
 
     # Write replaced_pairs.csv
     if args.save_csv:
-        with open("replaced_pairs.csv", "w", newline='') as f:
+        with open(args.csv_filename, "w", newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(["A_index", "A_x", "A_y", "A_z", "B1_index", "B1_x", "B1_y", "B1_z", "d1", "d2", "Replaced"])
+            writer.writerow([f"{args.element_a} index", "x", "y", "z", f"{args.element_b} index", "x", "y", "z", "d1 (Å)", "d2 (Å)", "Replaced"])
+
+            replaced_rows = []
+            non_replaced_rows = []
+
             for d1, d2, ia, ib in all_pairs_info:
-                replaced_flag = "Yes" if ia in selected_a_indices else "No"
-                writer.writerow([
-                    ia, *coords_cart[ia], ib, *coords_cart[ib], f"{d1:.6f}", f"{d2:.6f}", replaced_flag
-                ])
+                row = [
+                    ia, *coords_cart[ia], ib, *coords_cart[ib], f"{d1:.6f}", f"{d2:.6f}",
+                    "Yes" if ia in selected_a_indices else "No"
+                ]
+                if ia in selected_a_indices:
+                    replaced_rows.append(row)
+                else:
+                    non_replaced_rows.append(row)
+
+            # Write replaced first, then the rest
+            for row in replaced_rows + non_replaced_rows:
+                writer.writerow(row)
+            print(f"Replacement info saved to '{args.csv_filename}'.")
 
     # Sort indices for output POSCAR
     replaced_b1_set = set(replaced_b1_indices)
@@ -178,7 +192,6 @@ def main():
 
     print(f"Replaced {len(selected_a_indices)} '{args.element_a}' atoms with '{args.element_c}'.")
     print(f"New structure written to '{args.output_file}' in Direct coordinates.")
-    print("Replacement info saved to 'replaced_pairs.csv'.")
 
 if __name__ == "__main__":
     main()
