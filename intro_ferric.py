@@ -6,6 +6,7 @@ sys.dont_write_bytecode = True
 import numpy as np
 import argparse
 import csv
+import random
 from c2d import read_poscar, fractional_to_cartesian, cartesian_to_fractional
 
 def pbc_distance(vec1, vec2, lattice):
@@ -27,6 +28,8 @@ def main():
     parser.add_argument("--top_n", "-n", type=int, default=None, help="Number of A atoms to replace (default: half of B atoms)")
     parser.add_argument("--save_csv", "-s", action="store_true", default=False, help="Save replacement pairs to CSV file")
     parser.add_argument("--csv_filename", "-csv", type=str, default="replaced_pairs.csv", help="CSV file for replacement pairs (default: replaced_pairs.csv)")
+    parser.add_argument("--disable_high_d2", "-dhd", action="store_true", default=False, help="Disable high d2 filtering")
+    parser.add_argument("--random_seed", "-rs", type=int, default=None, help="Random seed for reproducibility (default: None)")
     args = parser.parse_args()
 
     # Load structure data
@@ -112,8 +115,31 @@ def main():
         print(f"No {args.element_a} atoms found with d1 ≈ d1_min ({d1_min:.6f} Å).")
         return
 
-    d2_candidates.sort(reverse=True)
-    selected = d2_candidates[:n_replace]
+    min_d2 = min(d2 for d2, _, _, _ in d2_candidates)
+
+    if args.disable_high_d2:
+        filtered_candidates = d2_candidates
+    else:
+        # Filter candidates with d2 significantly larger than the minimum
+        filtered_candidates = [(d2, d1, ia, ib) for (d2, d1, ia, ib) in d2_candidates if d2 > min_d2 + tol]
+        if not filtered_candidates:
+            print("No candidates with d2 significantly larger than the minimum.")
+            return
+
+    if args.random_seed is not None:
+        random.seed(args.random_seed)
+    random.shuffle(filtered_candidates)
+
+    selected = []
+    used_b1_indices = set()
+
+    for d2, d1, ia, ib in filtered_candidates:
+        if ib in used_b1_indices:
+            continue  # Skip if B1 already used
+        selected.append((d2, d1, ia, ib))
+        used_b1_indices.add(ib)
+        if len(selected) == n_replace:
+            break
 
     if len(selected) < n_replace:
         print(f"Warning: Only {len(selected)} {args.element_a} atoms found with d1 ≈ d1_min. Replacing these.")
