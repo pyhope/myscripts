@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#from util import reverse_readline
 import os 
 import argparse
 import numpy as np
@@ -12,16 +11,14 @@ import pickle as pkl
 from matplotlib import rcParams
 
 rcParams['font.size'] = '16'
-rcParams['xtick.direction'] = 'in'
-rcParams['ytick.direction'] = 'in'
 
-parser = argparse.ArgumentParser(description="Plot the time convergence of kappa")
-parser.add_argument("--input_file", "-i", type=str, default="jh.dat",  help="log_lmp generated file")
+parser = argparse.ArgumentParser(description="Calculate thermal conductivity from heat current autocorrelation function")
+parser.add_argument("--input_file", "-i", type=str, default="jh.dat",  help="jh output file")
 parser.add_argument("--timestep", "-ts", type=float, help="Timestep in fs, search in in.* if not provided")
 parser.add_argument("--total_time", "-tt", type=float, default=100, help="total time for plotting in ps, default 100 ps")
 parser.add_argument("--temperature", "-t", type=float,help='Temperature in K, search in Temp.txt and then in.* if not provided')
-parser.add_argument("--volume", "-v", type=float,help='Volume in A^3, search in nve.lmp if not provided')
-parser.add_argument("--configeration", "-conf", type=str, default='nve.lmp', help="read volume from this file")
+parser.add_argument("--volume", "-v", type=float,help='Volume in A^3, search in eq.final.lmp if not provided')
+parser.add_argument("--configeration", "-conf", type=str, default='eq.final.lmp', help="read volume from this file")
 parser.add_argument("--outfile", "-o", type=str,default='kappa', help="out file name")
 
 args = parser.parse_args()
@@ -71,7 +68,7 @@ else:
 #            except:
 #                print('No T found in ', infile)                   
     print('  ** ts = ', timestep)
-        
+
 if args.volume:
     V = args.volume
 else:
@@ -141,7 +138,7 @@ k = np.mean(kxyz, axis=0)
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
 
-ax[0].plot(tcorr, j, c='k', label='average (%d ns)' % (t[-1] / 1000))
+ax[0].plot(tcorr, j, c='k', label=f'Average ({t[-1] / 1000:.1f} ns)')
 ax[0].plot(tcorr, jxyz[0], c='C1', label='x')
 ax[0].plot(tcorr, jxyz[1], c='C2', label='y')
 ax[0].plot(tcorr, jxyz[2], c='C0', label='z')
@@ -151,7 +148,7 @@ ax[0].plot(tcorr, np.ones(tcorr.shape)*0,'k--')
 ax[0].set_xscale('log')
 ax[0].legend(fancybox=False, edgecolor='black')
 
-ax[1].plot(tcorr, k, c='k', label='average (%.1f)' % (t[-1] / 1000))
+ax[1].plot(tcorr, k, c='k', label=f'Average ({t[-1] / 1000:.1f} ns)')
 ax[1].plot(tcorr, kxyz[0], c='C1', label='x')
 ax[1].plot(tcorr, kxyz[1], c='C2', label='y')
 ax[1].plot(tcorr, kxyz[2], c='C0', label='z')
@@ -172,6 +169,4 @@ with open(args.outfile + '.pkl', 'wb') as file:
     data = [T, P, tcorr, jxyz, kxyz]
     pkl.dump(data, file)
 
-# with open(args.outfile + '_full.pkl', 'wb') as file:
-#     data = [T, t, jxyz_full, kxyz_full]
-#     pkl.dump(data, file)
+np.savetxt(args.outfile + '.dat', np.array([tcorr, jxyz[0], jxyz[1], jxyz[2], kxyz[0], kxyz[1], kxyz[2]]).T, header=f't (ps) Jx Jy Jz kx ky kz; T = {T:.2f} K, P = {P:.2f} GPa', fmt='%.8f')
