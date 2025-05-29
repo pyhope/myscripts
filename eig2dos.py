@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Author: Yihang Peng (modified for ISPIN=2 EIGENVAL format with E_up, E_dn, occ_up, occ_dn per line)
 
 import os
 import numpy as np
