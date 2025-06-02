@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Created on Tue Jan 19 11:02:36 2021
+unit 
+https://lammps.sandia.gov/doc/compute_heat_flux.html
+
+directly analyze the log.properties file with Step, Jx, Jy, Jz 
+
+On Wed Jan  6 22:26:44 2021
+jiedeng: analyze output of ave/correlate
+
+On Wed May 21, 2025
+Yihang Peng: Improve the visualization
+
+@author: jiedeng, Yihang Peng
+"""
 
 import os 
 import argparse
@@ -19,7 +34,10 @@ parser.add_argument("--total_time", "-tt", type=float, default=100, help="total 
 parser.add_argument("--temperature", "-t", type=float,help='Temperature in K, search in Temp.txt and then in.* if not provided')
 parser.add_argument("--volume", "-v", type=float,help='Volume in A^3, search in eq.final.lmp if not provided')
 parser.add_argument("--configeration", "-conf", type=str, default='eq.final.lmp', help="read volume from this file")
+parser.add_argument("--avg1", "-a1", type=float, default=0.1, help="average kappa between avg1 and avg2")
+parser.add_argument("--avg2", "-a2", type=float, default=1, help="average kappa between avg1 and avg2")
 parser.add_argument("--outfile", "-o", type=str,default='kappa', help="out file name")
+parser.add_argument("--save_pkl", "-pkl", action='store_true', help="save data in pickle format")
 
 args = parser.parse_args()
 
@@ -122,9 +140,9 @@ print('Jy done!')
 JzJz = autocorr(Jz)
 print('Jz done!')
 
-cumsum_JxJx = scipy.integrate.cumtrapz(JxJx,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-cumsum_JyJy = scipy.integrate.cumtrapz(JyJy,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
-cumsum_JzJz = scipy.integrate.cumtrapz(JzJz,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
+cumsum_JxJx = scipy.integrate.cumulative_trapezoid(JxJx,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
+cumsum_JyJy = scipy.integrate.cumulative_trapezoid(JyJy,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
+cumsum_JzJz = scipy.integrate.cumulative_trapezoid(JzJz,initial=0)*scale; #np.insert(cumsum_JxJx, 0, 0)
 
 jxyz_full = np.array([JxJx, JyJy, JzJz]) * metal2SIps
 kxyz_full = np.array([cumsum_JxJx, cumsum_JyJy, cumsum_JzJz])
@@ -135,6 +153,8 @@ kxyz = kxyz_full[:,:tcorr_len]
 j = np.mean(jxyz, axis=0)
 k = np.mean(kxyz, axis=0)
 
+k_avg = np.mean(k[(tcorr > args.avg1) & (tcorr < args.avg2)]) # average kappa between 0.1 and 10 ps
+
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
 
@@ -143,30 +163,34 @@ ax[0].plot(tcorr, jxyz[0], c='C1', label='x')
 ax[0].plot(tcorr, jxyz[1], c='C2', label='y')
 ax[0].plot(tcorr, jxyz[2], c='C0', label='z')
 ax[0].set_ylabel('C(t)' + ' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1} \mathrm{ps}^{-1})$')
-
 ax[0].plot(tcorr, np.ones(tcorr.shape)*0,'k--')
-ax[0].set_xscale('log')
-ax[0].legend(fancybox=False, edgecolor='black')
 
-ax[1].plot(tcorr, k, c='k', label=f'Average ({t[-1] / 1000:.1f} ns)')
-ax[1].plot(tcorr, kxyz[0], c='C1', label='x')
-ax[1].plot(tcorr, kxyz[1], c='C2', label='y')
-ax[1].plot(tcorr, kxyz[2], c='C0', label='z')
+ax[1].plot(tcorr, k, c='k')
+ax[1].plot(tcorr, kxyz[0], c='C1')
+ax[1].plot(tcorr, kxyz[1], c='C2')
+ax[1].plot(tcorr, kxyz[2], c='C0')
+ax[1].axhline(k_avg, c='k', ls='--', alpha=0.7, label=f'{k_avg:.2f} ({args.avg1:.1f} - {args.avg2:.1f} ps)')
 
 ax[1].set_xlabel('t (ps)')
 ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
 
-ax[1].set_xscale('log')
+for a in ax:
+    a.set_xscale('log')
+    a.legend(fancybox=False, edgecolor='black')
+    a.minorticks_on()
 
 plt.savefig(args.outfile + '.jpg', dpi=300, bbox_inches='tight')
 
 with open("Press.txt", "r") as file:
     P = float(file.read())
 
-with open(args.outfile + '.pkl', 'wb') as file:
-    print('Total time for autocorrelation:', t[-1])
-    print('Total time for plotting:', tcorr[-1])
-    data = [T, P, tcorr, jxyz, kxyz]
-    pkl.dump(data, file)
-
-np.savetxt(args.outfile + '.dat', np.array([tcorr, jxyz[0], jxyz[1], jxyz[2], kxyz[0], kxyz[1], kxyz[2]]).T, header=f't (ps) Jx Jy Jz kx ky kz; T = {T:.2f} K, P = {P:.2f} GPa', fmt='%.8f')
+if args.save_pkl:
+    print('Save data in pickle format ...')
+    with open(args.outfile + '.pkl', 'wb') as file:
+        print('Total time for autocorrelation:', t[-1])
+        print('Total time for plotting:', tcorr[-1])
+        data = [T, P, tcorr, jxyz, kxyz]
+        pkl.dump(data, file)
+else:
+    print('Save data in txt format ...')
+    np.savetxt(args.outfile + '.txt', np.array([tcorr, jxyz[0], jxyz[1], jxyz[2], kxyz[0], kxyz[1], kxyz[2]]).T, header=f't (ps) Jx Jy Jz kx ky kz; T = {T:.2f} K, P = {P:.2f} GPa', fmt='%.8f')
