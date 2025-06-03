@@ -3,7 +3,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-import lammps_logfile
+import logfile
 from matplotlib import rcParams
 import argparse
 
@@ -19,7 +19,7 @@ parser.add_argument("-es", "--end_step",type=int,default=-1, help="End time step
 parser.add_argument("-rn", "--run_number",type=int,default=-1, help="Lammps simulations commonly involve several run-commands. Here you may choose what run you want the log data from. Default of :code:`-1` returns data from all runs concatenated")
 args = parser.parse_args()
 
-log = lammps_logfile.File(args.input_file)
+log = logfile.File(args.input_file)
 f = args.out_figure
 n = args.step_number
 begin = args.begin_step
