@@ -52,18 +52,20 @@ for index, i in enumerate(props):
     else:
         ax[index].set_title(f"{i} = {avgy:.2f}")
     ax[index].set_ylabel(i)
-    if i == "Press":
-        avg_p = avgy
-    if i == "Temp":
-        avg_t = avgy
+    with open(f"{i}.txt", "w") as file:
+        file.write(str(avgy))
+
+if 'Lx' in props and 'Ly' in props:
+    lx = log.get("Lx", run_num=args.run_number)[begin:end]
+    ly = log.get("Ly", run_num=args.run_number)[begin:end]
+    r_xy = lx/ly if np.mean(lx) > np.mean(ly) else ly/lx
+    mean_r_xy = np.mean(r_xy)
+    std_r_xy = np.std(r_xy[::n*10])
+    with open("Rab.txt", "w") as file:
+        file.write(f"{mean_r_xy:.6f}\n")
+        file.write(f"{std_r_xy:.6f}\n")
 
 ax[-1].set_xlabel('Step')
 
 plt.savefig(f, dpi=200, bbox_inches='tight')
 plt.show()
-
-if not args.properties:
-    with open("Temp.txt", "w") as file:
-        file.write(str(avg_t))
-    with open("Press.txt", "w") as file:
-        file.write(str(avg_p))
