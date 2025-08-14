@@ -9,7 +9,7 @@ import argparse
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-r", "--run_dir", type=str, default="../1_run", help="Phq running directory")
 parser.add_argument("-gv", "--gv_dir", type=str, default="../3_gv", help="Group velocity calculation directory")
-parser.add_argument("-c", "--frequency_cutoff", type=float, default=400, help="Cutoff frequency (cm^-1)")
+parser.add_argument("-c", "--frequency_cutoff", type=float, default=600, help="Cutoff frequency (cm^-1)")
 args = parser.parse_args()
 
 THz_to_cm_inv = 33.35641
