@@ -45,6 +45,8 @@ values = np.loadtxt(filename)
 plt.plot(values)
 plt.xlabel('Time (fs)')
 plt.ylabel(prop)
+plt.grid(True)
+plt.minorticks_on()
 plt.savefig(plot_filename, dpi=300)
 
 print(f"Processing {prop} data...")
