@@ -7,8 +7,8 @@ parser = argparse.ArgumentParser(description="Convert VASP XDATCAR to Quantum ES
 parser.add_argument("--input_filename", "-i", type=str, default="XDATCAR",  help="input filename")
 parser.add_argument("--output_filename", "-o", type=str, default="md.out",  help="output filename")
 parser.add_argument("--supercell_dimension", "-d", type=int, default=2,  help="supercell dimension")
-parser.add_argument("--start_step", "-s", type=int, default=2500,  help="starting step")
-parser.add_argument("--end_step", "-e", type=int, default=500000,  help="ending step")
+parser.add_argument("--start_step", "-s", type=int, default=2500,  help="starting frame index (1-based)")
+parser.add_argument("--end_step", "-e", type=int, default=500000,  help="ending frame index (1-based, inclusive)")
 
 args = parser.parse_args()
 xdatcar_file = args.input_filename
@@ -34,10 +34,11 @@ def read_xdatcar(filename):
     steps = []
 
     i = 7
+    frame_counter = 0  # our own counter starting from 1 for the first recorded frame
     while i < len(lines):
         if lines[i].startswith('Direct configuration'):
-            step = int(lines[i].split('=')[1])
-            steps.append(step)
+            frame_counter += 1
+            steps.append(frame_counter)  # use counter instead of parsing XDATCAR number
             i += 1
             frame_coords = []
             for _ in range(natoms):
@@ -74,23 +75,30 @@ def build_grouped_indices(counts, group_count):
     return reordered_indices
 
 def write_formatted_output(filename, element_list, steps, coords, reordered_indices, start_step, end_step):
+    total_frames = len(steps)
+    if total_frames == 0:
+        raise ValueError("No frames found in XDATCAR.")
+
     frame0 = coords[0]
-    if end_step > len(steps):
-        end_step = len(steps)
-        steps = steps[start_step-1:]
-        coords = coords[start_step-1:]
-    else:
-        steps = steps[start_step-1:end_step]
-        coords = coords[start_step-1:end_step]
+
+    # Clamp selection range (1-based inclusive indices)
+    start_idx = max(0, start_step - 1)
+    end_idx_exclusive = min(end_step, total_frames)  # end_step is inclusive
+    if end_idx_exclusive < start_step:
+        raise ValueError(f"Invalid range: start_step={start_step}, end_step={end_step}, total_frames={total_frames}")
+
+    sel_steps = steps[start_idx:end_idx_exclusive]
+    sel_coords = coords[start_idx:end_idx_exclusive]
+
     with open(filename, 'w') as f:
-        f.write(f"total_step = {end_step}\n\n")
+        f.write(f"total_step = {total_frames}\n\n")
         f.write("atomic_positions\n")
         for idx in reordered_indices:
             elem = element_list[idx]
             x, y, z = frame0[idx]
             f.write(f"{elem:<4}  {x:.10f}  {y:.10f}  {z:.10f}\n")
         f.write("\n")
-        for step, frame in zip(steps, coords):
+        for step, frame in zip(sel_steps, sel_coords):
             f.write(f"md_step = {step}\n")
             f.write("atomic_md_positions\n")
             for idx in reordered_indices:
