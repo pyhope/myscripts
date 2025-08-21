@@ -9,7 +9,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_file", "-i", default="eig.dat", help="Input file name")
 parser.add_argument("--smear", "-s", type=float, default=0.35355, help="Smearing width for DOS calculation")
-parser.add_argument("--ispin", "-i", type=int, default=2, help="Spin polarization (1 or 2)")
+parser.add_argument("--ispin", "-is", type=int, default=2, help="Spin polarization (1 or 2)")
 parser.add_argument("--read_spin_from_INCAR", '-rs', action='store_true', help="Read ISPIN from INCAR file")
 # parser.add_argument("--read_efermi_from_DOSCAR", '-re', action='store_true', help="Read Efermi from DOSCAR file")
 args = parser.parse_args()
@@ -113,13 +113,13 @@ def compute_dos(kedf, tag=''):
     dossm_occ = y1new(ebin_sm, ebin[:-1], dos_occ, smear)
 
     np.savetxt(f'dos{tag}.txt', np.column_stack((ebin[:-1], dos)), fmt='%f', delimiter='\t ',
-               header=f'# E-Ef(eV)\t dos{tag}', comments='')
+               header=f'# E (eV)\t dos{tag}', comments='')
     np.savetxt(f'dos_occup{tag}.txt', np.column_stack((ebin[:-1], dos_occ)), fmt='%f', delimiter='\t ',
-               header=f'# E-Ef(eV)\t dos_occ{tag}', comments='')
+               header=f'# E (eV)\t dos_occ{tag}', comments='')
     np.savetxt(f'dos_sm{tag}.txt', np.column_stack((ebin_sm, dossm)), fmt='%f', delimiter='\t ',
-               header=f'# E-Ef(eV)\t dossm{tag}', comments='')
+               header=f'# E (eV)\t dossm{tag}', comments='')
     np.savetxt(f'dos_occup_sm{tag}.txt', np.column_stack((ebin_sm, dossm_occ)), fmt='%f', delimiter='\t ',
-               header=f'# E-Ef(eV)\t dossm_occ{tag}', comments='')
+               header=f'# E (eV)\t dossm_occ{tag}', comments='')
 
     return ebin[:-1], dos, dos_occ, ebin_sm, dossm, dossm_occ
 
