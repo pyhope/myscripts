@@ -59,7 +59,7 @@ occ_dn = fermi_dirac(e_dn, E_F_dn, sigma)
 
 # ---- write output data ----
 output_data = np.column_stack((band_index, e_up, e_dn, occ_up, occ_dn))
-np.savetxt("occ.dat", output_data, fmt=['%d', '%.10f', '%.10f', '%.10f', '%.10f'])
+np.savetxt("eig.dat", output_data, fmt=['%d', '%.10f', '%.10f', '%.10f', '%.10f'])
 
 print(f"Spin-up Fermi level:   {E_F_up:.10f} eV")
 print(f"Spin-down Fermi level: {E_F_dn:.10f} eV")

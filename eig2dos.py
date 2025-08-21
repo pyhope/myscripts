@@ -7,32 +7,38 @@ import pandas as pd
 import argparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--input_file", "-i", default="eig.dat", help="Input file name")
 parser.add_argument("--smear", "-s", type=float, default=0.35355, help="Smearing width for DOS calculation")
+parser.add_argument("--ispin", "-i", type=int, default=2, help="Spin polarization (1 or 2)")
+parser.add_argument("--read_spin_from_INCAR", '-rs', action='store_true', help="Read ISPIN from INCAR file")
+# parser.add_argument("--read_efermi_from_DOSCAR", '-re', action='store_true', help="Read Efermi from DOSCAR file")
 args = parser.parse_args()
 
 smear = args.smear
+ISPIN = args.ispin
+input_file = args.input_file
 
-# --- Read Efermi from DOSCAR ---
-with open('DOSCAR', 'r') as f:
-    for _ in range(5):
-        f.readline()
-    linfo = f.readline()
-    Emax, Emin, Nbins, Efermi, _ = np.asarray(linfo.split(), dtype=float)
+# if args.read_efermi_from_DOSCAR:
+#     with open('DOSCAR', 'r') as f:
+#         for _ in range(5):
+#             f.readline()
+#         linfo = f.readline()
+#         Emax, Emin, Nbins, Efermi, _ = np.asarray(linfo.split(), dtype=float)
 
-# --- Determine ISPIN from INCAR ---
-ISPIN = 1
-if os.path.exists('INCAR'):
-    with open('INCAR', 'r') as f:
-        for line in f:
-            if 'ISPIN' in line:
-                ISPIN = int(line.split('=')[1].strip())
-                break
+if args.read_spin_from_INCAR:
+    ISPIN = 1
+    if os.path.exists('INCAR'):
+        with open('INCAR', 'r') as f:
+            for line in f:
+                if 'ISPIN' in line:
+                    ISPIN = int(line.split('=')[1].strip())
+                    break
 
-# --- Read EIGENVAL ---
 col_names = ('kptind', 'kx', 'ky', 'kz', 'kw', 'energy', 'occupancy')
-with open('EIGENVAL', 'r') as f:
-    for _ in range(5):
-        f.readline()
+with open(input_file, 'r') as f:
+    if input_file == 'EIGENVAL':
+        for _ in range(5):
+            f.readline()
     Nele, Nkpts, Nbands = np.asarray(f.readline().split(), dtype=int)
     f.readline()
 
@@ -106,18 +112,18 @@ def compute_dos(kedf, tag=''):
     dossm = y1new(ebin_sm, ebin[:-1], dos, smear)
     dossm_occ = y1new(ebin_sm, ebin[:-1], dos_occ, smear)
 
-    np.savetxt(f'dos{tag}.txt', np.column_stack((ebin[:-1] - Efermi, dos)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos{tag}.txt', np.column_stack((ebin[:-1], dos)), fmt='%f', delimiter='\t ',
                header=f'# E-Ef(eV)\t dos{tag}', comments='')
-    np.savetxt(f'dos_occup{tag}.txt', np.column_stack((ebin[:-1] - Efermi, dos_occ)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos_occup{tag}.txt', np.column_stack((ebin[:-1], dos_occ)), fmt='%f', delimiter='\t ',
                header=f'# E-Ef(eV)\t dos_occ{tag}', comments='')
-    np.savetxt(f'dos_sm{tag}.txt', np.column_stack((ebin_sm - Efermi, dossm)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos_sm{tag}.txt', np.column_stack((ebin_sm, dossm)), fmt='%f', delimiter='\t ',
                header=f'# E-Ef(eV)\t dossm{tag}', comments='')
-    np.savetxt(f'dos_occup_sm{tag}.txt', np.column_stack((ebin_sm - Efermi, dossm_occ)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos_occup_sm{tag}.txt', np.column_stack((ebin_sm, dossm_occ)), fmt='%f', delimiter='\t ',
                header=f'# E-Ef(eV)\t dossm_occ{tag}', comments='')
 
-    return ebin[:-1] - Efermi, dos, dos_occ, ebin_sm - Efermi, dossm, dossm_occ
+    return ebin[:-1], dos, dos_occ, ebin_sm, dossm, dossm_occ
 
-# --- Run and plot ---
+# --- Run ---
 if ISPIN == 2:
     x1, dos1, dos1_occ, x1sm, dossm1, dossm1_occ = compute_dos(kedf_up, '_up')
     x2, dos2, dos2_occ, x2sm, dossm2, dossm2_occ = compute_dos(kedf_down, '_down')
