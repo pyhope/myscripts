@@ -24,6 +24,8 @@ w_q = data[:, 3]  # q-point weights (already normalized)
 if not np.isclose(np.sum(w_q), 1.0, rtol=1e-6):
     raise ValueError(f"q-point weights are not normalized! Sum = {np.sum(w_q)}")
 
+w_q[0] = 0
+
 N_atoms = args.n_atoms  # Number of atoms in the unit cell
 Nmodes = 3 * N_atoms  # Number of modes (3N for 3D)
 T = args.temperature  # Temperature (K)

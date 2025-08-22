@@ -12,6 +12,9 @@ parser.add_argument("-a", "--a_lat", type=float, default=4.376208478, help="latt
 parser.add_argument("-b", "--b_lat", type=float, default=4.636170450, help="lattice constant b in angstroms")
 parser.add_argument("-c", "--c_lat", type=float, default=6.382051746, help="lattice constant c in angstroms")
 
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-fw", "--forward_difference", default=False, action='store_true', help="Default: center difference")
+group.add_argument("-bw", "--backward_difference", default=False, action='store_true', help="Default: center difference")
 args = parser.parse_args()
 
 a_lat = args.a_lat * 1e-10
@@ -48,11 +51,11 @@ def parse_matdyn_modes(filepath):
 
     return np.array(q_list), np.array(freq_list)  # (nq, 3), (nq, nmodes)
 
-def compute_velocity(f_plus, f_minus, dq, a_lat):
+def compute_velocity(f_plus, f_minus, dq, a_lat, factor):
     df = f_plus - f_minus
     # mask = (f_plus > 0.01) & (f_minus > 0.01)
     v = np.zeros_like(df)
-    v = (a_lat * df * 1e12) / (dq * 2)  # Convert to m/s
+    v = (a_lat * df * 1e12) / (dq * factor)  # Convert to m/s
     return v
 
 tags = ['orig', 'xp', 'xm', 'yp', 'ym', 'zp', 'zm']
@@ -70,9 +73,18 @@ for tag in tags:
 
 nq, nmodes = freq_data['orig'].shape
 
-vel_x = compute_velocity(freq_data['xp'], freq_data['xm'], dq, a_lat)
-vel_y = compute_velocity(freq_data['yp'], freq_data['ym'], dq, b_lat)
-vel_z = compute_velocity(freq_data['zp'], freq_data['zm'], dq, c_lat)
+if args.forward_difference:
+    vel_x = compute_velocity(freq_data['xp'], freq_data['orig'], dq, a_lat, factor=1.0)
+    vel_y = compute_velocity(freq_data['yp'], freq_data['orig'], dq, b_lat, factor=1.0)
+    vel_z = compute_velocity(freq_data['zp'], freq_data['orig'], dq, c_lat, factor=1.0)
+elif args.backward_difference:
+    vel_x = compute_velocity(freq_data['orig'], freq_data['xm'], dq, a_lat, factor=1.0)
+    vel_y = compute_velocity(freq_data['orig'], freq_data['ym'], dq, b_lat, factor=1.0)
+    vel_z = compute_velocity(freq_data['orig'], freq_data['zm'], dq, c_lat, factor=1.0)
+else:
+    vel_x = compute_velocity(freq_data['xp'], freq_data['xm'], dq, a_lat, factor=2.0)
+    vel_y = compute_velocity(freq_data['yp'], freq_data['ym'], dq, b_lat, factor=2.0)
+    vel_z = compute_velocity(freq_data['zp'], freq_data['zm'], dq, c_lat, factor=2.0)
 
 group_vel = np.stack([vel_x, vel_y, vel_z], axis=-1) # m/s
 
