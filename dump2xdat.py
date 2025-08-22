@@ -238,7 +238,7 @@ def main():
     ap = argparse.ArgumentParser(description="Convert LAMMPS dump (id type x y z) to VASP XDATCAR (NVT, fixed box).")
     ap.add_argument("-i", "--input_dump", type=str, default="nvt.dump", help="Input LAMMPS dump file")
     ap.add_argument("-o", "--output_xdatcar", type=str, default="XDATCAR", help="Output XDATCAR filename")
-    ap.add_argument("--types", type=str, required=True,
+    ap.add_argument("-t", "--types", type=str, required=True,
                     help='Space-separated element symbols mapping to LAMMPS types 1..N, e.g. --types "Fe Mg Si O"')
     ap.add_argument("--title", type=str, default="unknown system", help="Title line for XDATCAR")
     ap.add_argument("-s", "--start_step", type=int, default=1, help="Start frame index (1-based, inclusive) in file order")
