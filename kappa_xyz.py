@@ -170,6 +170,8 @@ ax[1].plot(tcorr, kxyz[0], c='C1')
 ax[1].plot(tcorr, kxyz[1], c='C2')
 ax[1].plot(tcorr, kxyz[2], c='C0')
 ax[1].axhline(k_avg, c='k', ls='--', alpha=0.7, label=f'{k_avg:.2f} ({args.avg1:.1f} - {args.avg2:.1f} ps)')
+with open("k_avg.txt", "w") as file:
+    file.write(f'{k_avg:.2f}')
 
 ax[1].set_xlabel('t (ps)')
 ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')

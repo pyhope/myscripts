@@ -34,17 +34,17 @@ datain = open(args.input_filename, 'r')
 if args.combined:
     combined_out = open(args.combined_filename, 'w')
 
-# Read frames
-line = datain.readline()
 frame_index = 0  # for sequential mode
+line = datain.readline()
 
 while line:
     if "ITEM: TIMESTEP" in line:
         timestep_line = datain.readline()
+        if not timestep_line:
+            break
         original_timestep = int(timestep_line.strip())
         frame_index += 1
 
-        # Determine whether to output this frame
         if args.sequential:
             should_output = (frame_index % args.frequency == 0)
             output_id = frame_index // args.frequency
@@ -59,14 +59,13 @@ while line:
                 output_filename = f"{output_id}.dump"
                 dataout = open(output_filename, 'w')
 
-            # Overwrite timestep number if in sequential mode
             dataout.write("ITEM: TIMESTEP\n")
             if args.sequential:
                 dataout.write(f"{frame_index}\n")
             else:
                 dataout.write(timestep_line)
 
-            # Write rest of the frame
+            # Write the rest of this frame
             while True:
                 line = datain.readline()
                 if not line or "ITEM: TIMESTEP" in line:
@@ -75,10 +74,18 @@ while line:
 
             if not args.combined:
                 dataout.close()
-            else:
-                continue  # avoid extra readline below
 
-    line = datain.readline()
+            # line is already the next "ITEM: TIMESTEP" or EOF, continue without extra readline
+            continue
+        else:
+            # Skip the rest of this frame
+            while True:
+                line = datain.readline()
+                if not line or "ITEM: TIMESTEP" in line:
+                    break
+            continue
+    else:
+        line = datain.readline()
 
 datain.close()
 if args.combined:
