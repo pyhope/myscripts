@@ -7,6 +7,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Fermi level solver")
 parser.add_argument("--input", "-i", default="eqp1.dat", help="Input filename")
+parser.add_argument("--output", "-o", default="eig.dat", help="Output filename")
 parser.add_argument("--magnetization", "-m", type=float, required=True, help="Total magnetization")
 parser.add_argument("--temperature", "-t", type=float, default=4000.0, help="Temperature")
 parser.add_argument("--nelect", "-n", type=int, default=1048, help="Total number of electrons (NELECT in OUTCAR)")
@@ -64,7 +65,7 @@ occ_dn = fermi_dirac(e_dn, E_F_dn, sigma)
 
 # ---- write output data ----
 output_data = np.column_stack((band_index, e_up, e_dn, occ_up, occ_dn))
-np.savetxt("eig.dat", output_data, fmt=['%d', '%.10f', '%.10f', '%.10f', '%.10f'], header=f"{N_total} 1 {len(band_index)}\n\n0.0 0.0 0.0 1.0", comments='')
+np.savetxt(args.output, output_data, fmt=['%d', '%.10f', '%.10f', '%.10f', '%.10f'], header=f"{N_total} 1 {len(band_index)}\n\n0.0 0.0 0.0 1.0", comments='')
 
 print(f"Spin-up Fermi level:   {E_F_up:.10f} eV")
 print(f"Spin-down Fermi level: {E_F_dn:.10f} eV")
