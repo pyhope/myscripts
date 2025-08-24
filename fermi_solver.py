@@ -12,6 +12,7 @@ parser.add_argument("--temperature", "-t", type=float, default=4000.0, help="Tem
 parser.add_argument("--nelect", "-n", type=int, default=1048, help="Total number of electrons (NELECT in OUTCAR)")
 parser.add_argument("-qe", action="store_true", help="Output QE-style eigenvalues and occupancies")
 parser.add_argument("-vasp", action="store_true", help="Output VASP-style eigenvalues and occupancies")
+parser.add_argument("-orig", action="store_true", help="Use original eigenvalues")
 
 args = parser.parse_args()
 
@@ -40,10 +41,14 @@ data = np.loadtxt(input_filename, skiprows=1)
 
 group1 = data[data[:, 0] == 1]
 band_index = group1[:, 1].astype(int)
-e_up = group1[:, 3]
-
 group2 = data[data[:, 0] == 2]
-e_dn = group2[:, 3]
+
+if args.orig:
+    e_up = group1[:, 2]
+    e_dn = group2[:, 2]
+else:
+    e_up = group1[:, 3]
+    e_dn = group2[:, 3]
 
 # ---- calculate total number of electrons ----
 N_up = (N_total + M) / 2
