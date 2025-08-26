@@ -32,8 +32,8 @@ parser.add_argument("--input_file", "-i", type=str, default="jh.dat",  help="jh 
 parser.add_argument("--timestep", "-ts", type=float, help="Timestep in fs, search in in.* if not provided")
 parser.add_argument("--total_time", "-tt", type=float, default=100, help="total time for plotting in ps, default 100 ps")
 parser.add_argument("--temperature", "-t", type=float,help='Temperature in K, search in Temp.txt and then in.* if not provided')
-parser.add_argument("--volume", "-v", type=float,help='Volume in A^3, search in eq.final.lmp if not provided')
-parser.add_argument("--configeration", "-conf", type=str, default='eq.final.lmp', help="read volume from this file")
+parser.add_argument("--volume", "-v", type=float,help='Volume in A^3, search in gk.lmp if not provided')
+parser.add_argument("--configeration", "-conf", type=str, default='gk.lmp', help="read volume from this file")
 parser.add_argument("--avg1", "-a1", type=float, default=0.1, help="average kappa between avg1 and avg2")
 parser.add_argument("--avg2", "-a2", type=float, default=1, help="average kappa between avg1 and avg2")
 parser.add_argument("--outfile", "-o", type=str,default='kappa', help="out file name")
@@ -153,7 +153,11 @@ kxyz = kxyz_full[:,:tcorr_len]
 j = np.mean(jxyz, axis=0)
 k = np.mean(kxyz, axis=0)
 
-k_avg = np.mean(k[(tcorr > args.avg1) & (tcorr < args.avg2)]) # average kappa between 0.1 and 10 ps
+# average kappa between 0.1 and 10 ps
+kx_avg = np.mean(kxyz[0][(tcorr > args.avg1) & (tcorr < args.avg2)])
+ky_avg = np.mean(kxyz[1][(tcorr > args.avg1) & (tcorr < args.avg2)])
+kz_avg = np.mean(kxyz[2][(tcorr > args.avg1) & (tcorr < args.avg2)])
+k_avg = np.mean([kx_avg, ky_avg, kz_avg])
 
 fig,ax = plt.subplots(2,1,figsize=(8,12),sharex=True)
 fig.subplots_adjust(hspace=0.05)
@@ -170,8 +174,9 @@ ax[1].plot(tcorr, kxyz[0], c='C1')
 ax[1].plot(tcorr, kxyz[1], c='C2')
 ax[1].plot(tcorr, kxyz[2], c='C0')
 ax[1].axhline(k_avg, c='k', ls='--', alpha=0.7, label=f'{k_avg:.2f} ({args.avg1:.1f} - {args.avg2:.1f} ps)')
+
 with open("k_avg.txt", "w") as file:
-    file.write(f'{k_avg:.2f}')
+    file.write(f'{kx_avg:.3f} {ky_avg:.3f} {kz_avg:.3f} {k_avg:.3f}')
 
 ax[1].set_xlabel('t (ps)')
 ax[1].set_ylabel(r'$k $'+' '+ r'$(\mathrm{W} \mathrm{m}^{-1} \mathrm{K}^{-1})$')
