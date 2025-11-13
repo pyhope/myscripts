@@ -11,19 +11,20 @@ parser.add_argument("--input_file", "-i", default="eig.dat", help="Input file na
 parser.add_argument("--smear", "-s", type=float, default=0.35355, help="Smearing width for DOS calculation")
 parser.add_argument("--ispin", "-is", type=int, default=2, help="Spin polarization (1 or 2)")
 parser.add_argument("--read_spin_from_INCAR", '-rs', action='store_true', help="Read ISPIN from INCAR file")
-# parser.add_argument("--read_efermi_from_DOSCAR", '-re', action='store_true', help="Read Efermi from DOSCAR file")
+parser.add_argument("--read_efermi_from_DOSCAR", '-re', action='store_true', help="Read Efermi from DOSCAR file")
 args = parser.parse_args()
 
 smear = args.smear
 ISPIN = args.ispin
 input_file = args.input_file
 
-# if args.read_efermi_from_DOSCAR:
-#     with open('DOSCAR', 'r') as f:
-#         for _ in range(5):
-#             f.readline()
-#         linfo = f.readline()
-#         Emax, Emin, Nbins, Efermi, _ = np.asarray(linfo.split(), dtype=float)
+Efermi = 0.0
+if args.read_efermi_from_DOSCAR:
+    with open('DOSCAR', 'r') as f:
+        for _ in range(5):
+            f.readline()
+        linfo = f.readline()
+        Emax, Emin, Nbins, Efermi, _ = np.asarray(linfo.split(), dtype=float)
 
 if args.read_spin_from_INCAR:
     ISPIN = 1
@@ -109,16 +110,16 @@ def compute_dos(kedf, tag=''):
         dos_occ += kw * np.histogram(e, bins=ebin, weights=occup)[0]
 
     ebin_sm = np.arange(emin - 10 * smear, emax + 10 * smear, smear)
-    dossm = y1new(ebin_sm, ebin[:-1], dos, smear)
-    dossm_occ = y1new(ebin_sm, ebin[:-1], dos_occ, smear)
+    dossm = y1new(ebin_sm, ebin[:-1], dos, smear) #*smear
+    dossm_occ = y1new(ebin_sm, ebin[:-1], dos_occ, smear) #*smear
 
-    np.savetxt(f'dos{tag}.txt', np.column_stack((ebin[:-1], dos)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos{tag}.txt', np.column_stack((ebin[:-1]-Efermi, dos)), fmt='%f', delimiter='\t ',
                header=f'# E (eV)\t dos{tag}', comments='')
-    np.savetxt(f'dos_occup{tag}.txt', np.column_stack((ebin[:-1], dos_occ)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos_occup{tag}.txt', np.column_stack((ebin[:-1]-Efermi, dos_occ)), fmt='%f', delimiter='\t ',
                header=f'# E (eV)\t dos_occ{tag}', comments='')
-    np.savetxt(f'dos_sm{tag}.txt', np.column_stack((ebin_sm, dossm)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos_sm{tag}.txt', np.column_stack((ebin_sm-Efermi, dossm)), fmt='%f', delimiter='\t ',
                header=f'# E (eV)\t dossm{tag}', comments='')
-    np.savetxt(f'dos_occup_sm{tag}.txt', np.column_stack((ebin_sm, dossm_occ)), fmt='%f', delimiter='\t ',
+    np.savetxt(f'dos_occup_sm{tag}.txt', np.column_stack((ebin_sm-Efermi, dossm_occ)), fmt='%f', delimiter='\t ',
                header=f'# E (eV)\t dossm_occ{tag}', comments='')
 
     return ebin[:-1], dos, dos_occ, ebin_sm, dossm, dossm_occ

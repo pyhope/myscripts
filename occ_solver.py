@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from scipy.optimize import brentq
 import argparse
 
 parser = argparse.ArgumentParser(description="Calculate occupancies using Fermi-Dirac distribution")
@@ -14,16 +13,15 @@ parser.add_argument("--temperature", "-t", type=float, default=4000.0, help="Tem
 parser.add_argument("-qe", action="store_true", help="Output QE-style eigenvalues and occupancies")
 parser.add_argument("-vasp", action="store_true", help="Output VASP-style eigenvalues and occupancies")
 parser.add_argument("-orig", action="store_true", help="Use original eigenvalues")
+parser.add_argument("--midgap", "-mg", action="store_true",
+                    help="Re-center E_F_up/E_F_dn to the mean of VBM/CBM found in e_up/e_dn relative to current E_Fs")
 
 args = parser.parse_args()
 
 input_filename = args.input
 E_F_up = args.fermi_level
 
-if args.fermi_level_down is not None:
-    E_F_dn = args.fermi_level_down
-else:
-    E_F_dn = args.fermi_level
+E_F_dn = args.fermi_level_down if args.fermi_level_down is not None else args.fermi_level
 
 ev2ry = 1/13.605703976
 
@@ -33,8 +31,14 @@ sigma = args.temperature * 0.000086173303    # Fermi-Dirac smearing width (in eV
 def fermi_dirac(e, E_F, sigma):
     return 1.0 / (1.0 + np.exp((e - E_F) / sigma))
 
-with open("fermi.dat", "w") as f:
-    f.write(f"{E_F_up:.10f}\n{E_F_dn:.10f}\n")
+def find_vbm_cbm_relative_to_ef(evals: np.ndarray, ef: float):
+    below = evals[evals <= ef]
+    above = evals[evals >= ef]
+    vbm = below.max() if below.size > 0 else evals.min()
+    cbm = above.min() if above.size > 0 else evals.max()
+    if cbm < vbm:
+        vbm, cbm = cbm, vbm
+    return vbm, cbm
 
 # ---- read input data ----
 data = np.loadtxt(input_filename, skiprows=1)
@@ -49,6 +53,23 @@ if args.orig:
 else:
     e_up = group1[:, 3]
     e_dn = group2[:, 3]
+
+if args.midgap:
+    vbm_up, cbm_up = find_vbm_cbm_relative_to_ef(e_up, E_F_up)
+    new_E_F_up = 0.5 * (vbm_up + cbm_up)
+
+    vbm_dn, cbm_dn = find_vbm_cbm_relative_to_ef(e_dn, E_F_dn)
+    new_E_F_dn = 0.5 * (vbm_dn + cbm_dn)
+
+    print("=== Midgap Fermi-level recentering enabled ===")
+    print(f"[UP] E_F (old) = {E_F_up:.10f}, E_F (new) = {new_E_F_up:.10f}")
+    print(f"[DN] E_F (old) = {E_F_dn:.10f}, E_F (new) = {new_E_F_dn:.10f}")
+
+    E_F_up = new_E_F_up
+    E_F_dn = new_E_F_dn
+
+with open("fermi.dat", "w") as f:
+    f.write(f"{E_F_up:.10f}\n{E_F_dn:.10f}\n")
 
 # ---- calculate occupancies ----
 occ_up = fermi_dirac(e_up, E_F_up, sigma)

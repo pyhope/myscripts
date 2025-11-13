@@ -4,20 +4,11 @@
 import numpy as np
 import glob
 import os
-import shutil
 
 # === Create output directory ===
 output_dir = "dos_total"
 os.makedirs(output_dir, exist_ok=True)
 print(f"Output directory created: {output_dir}")
-
-# === Read Fermi energy ===
-with open("Ef.dat", "r") as f:
-    fermi_energy = float(f.readline().strip())
-print(f"Fermi energy read: {fermi_energy:.6f} eV")
-
-# === Copy Ef.dat to output directory ===
-shutil.copy("Ef.dat", os.path.join(output_dir, "Ef.dat"))
 
 # === Initialize containers ===
 element_orbital_sum = {}  # e.g. Fe_d
@@ -98,7 +89,7 @@ for key, val in element_orbital_sum.items():
     energy, up, down = val["energy"], val["up"], val["down"]
     output = np.column_stack((energy, up, down))
     filename = os.path.join(output_dir, f"{key}_total_pdos.dat")
-    header = f"# Fermi energy (eV): {fermi_energy:.6f}\n# Energy (eV)  PDOS_up  PDOS_down"
+    header = f"# Energy (eV)  PDOS_up  PDOS_down"
     np.savetxt(filename, output, fmt="%.6f", header=header, comments="")
     print(f"Saved: {filename}")
 
@@ -107,7 +98,7 @@ for element, val in element_total_sum.items():
     energy, up, down = val["energy"], val["up"], val["down"]
     output = np.column_stack((energy, up, down))
     filename = os.path.join(output_dir, f"{element}_total_pdos.dat")
-    header = f"# Fermi energy (eV): {fermi_energy:.6f}\n# Energy (eV)  PDOS_up  PDOS_down"
+    header = f"# Energy (eV)  PDOS_up  PDOS_down"
     np.savetxt(filename, output, fmt="%.6f", header=header, comments="")
     print(f"Saved: {filename}")
 
@@ -116,7 +107,7 @@ for orbital, val in orbital_total_sum.items():
     energy, up, down = val["energy"], val["up"], val["down"]
     output = np.column_stack((energy, up, down))
     filename = os.path.join(output_dir, f"{orbital}_total_pdos.dat")
-    header = f"# Fermi energy (eV): {fermi_energy:.6f}\n# Energy (eV)  PDOS_up  PDOS_down"
+    header = f"# Energy (eV)  PDOS_up  PDOS_down"
     np.savetxt(filename, output, fmt="%.6f", header=header, comments="")
     print(f"Saved: {filename}")
 
@@ -130,7 +121,7 @@ if os.path.isfile(dos_file):
         down = total_dos[:, 2]
         output = np.column_stack((energy, up, down))
         filename = os.path.join(output_dir, "total_DOS.dat")
-        header = f"# Fermi energy (eV): {fermi_energy:.6f}\n# Energy (eV)  DOS_up  DOS_down"
+        header = f"# Energy (eV)  DOS_up  DOS_down"
         np.savetxt(filename, output, fmt="%.3f", header=header, comments="")
         print(f"Saved: {filename}")
     except Exception as e:
