@@ -40,7 +40,8 @@ with open(input_file, 'r') as f:
     if input_file == 'EIGENVAL':
         for _ in range(5):
             f.readline()
-    Nele, Nkpts, Nbands = np.asarray(f.readline().split(), dtype=int)
+    Nele, Nkpts, Nbands = np.asarray(f.readline().split(), dtype=float)
+    Nele, Nkpts, Nbands = int(Nele), int(Nkpts), int(Nbands)
     f.readline()
 
     kpts = np.zeros((Nkpts, 4))

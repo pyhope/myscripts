@@ -4,9 +4,15 @@
 import numpy as np
 import glob
 import os
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--prefix", "-p", default="ppv", help="Prefix for PDOS files")
+parser.add_argument("--output_dir", "-o", default="dos_total", help="Output directory for processed DOS files")
+args = parser.parse_args()
 
 # === Create output directory ===
-output_dir = "dos_total"
+output_dir = args.output_dir
 os.makedirs(output_dir, exist_ok=True)
 print(f"Output directory created: {output_dir}")
 
@@ -16,7 +22,7 @@ element_total_sum = {}    # e.g. Fe
 orbital_total_sum = {}    # e.g. d
 
 # === Read all PDOS files ===
-pdos_files = sorted(glob.glob("ppv.pdos_atm#*_wfc#*"))
+pdos_files = sorted(glob.glob(f"{args.prefix}.pdos_atm#*_wfc#*"))
 
 for file in pdos_files:
     try:
