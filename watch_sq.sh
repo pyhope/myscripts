@@ -5,9 +5,9 @@ set -euo pipefail
 
 USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z"
-WARN_AFTER=60
-KILL_AFTER=600
-KILLED_DIRS_FILE="./killed_workdirs.txt"
+WARN_AFTER=${1:-'60'}
+KILL_AFTER=${2:-'600'}
+KILLED_DIRS_FILE="./rerun_list.txt"
 
 check_once() {
   local now_epoch
@@ -64,6 +64,7 @@ check_once() {
 }
 
 while :; do
+  echo "===== $(date '+%Y-%m-%d %H:%M:%S%z') ====="
   check_once
   sleep "$WARN_AFTER"
 done
