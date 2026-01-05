@@ -5,7 +5,7 @@ set -euo pipefail
 
 USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z"
-WARN_AFTER=${1:-'60'}
+WARN_AFTER=${1:-'120'}
 KILL_AFTER=${2:-'600'}
 KILLED_DIRS_FILE="./rerun_list.txt"
 
@@ -26,7 +26,7 @@ check_once() {
 
       # only check RUNNING jobs
       if [[ "$state" != "R" ]]; then
-        echo "INFO: JOBID=$jobid | STATE=$state | WORK_DIR=$workdir | skip (not running)"
+        # echo "INFO: JOBID=$jobid | STATE=$state | WORK_DIR=$workdir | skip (not running)"
         continue
       fi
 
