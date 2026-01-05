@@ -9,7 +9,7 @@ def move_atom_pbc_min_image(
     poscar_out="out.vasp",
     atom_index=103,     # 1-based
     ref_index=2,        # 1-based
-    shift=0.01          # Angstrom
+    shift=0.3          # Angstrom
 ):
     with open(poscar_in, "r") as f:
         lines = f.readlines()
@@ -85,11 +85,9 @@ if __name__ == "__main__":
         poscar_out="ini.vasp",
         atom_index=int(sys.argv[1]),
         ref_index=1,
-        shift=0.01
     )
     move_atom_pbc_min_image(
         poscar_out="fin.vasp",
         atom_index=int(sys.argv[2]),
         ref_index=2,
-        shift=0.01
     )
