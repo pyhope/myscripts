@@ -4,9 +4,7 @@
 set -euo pipefail
 
 USER_ID="yp0007"
-
-SQUEUE_FMT="%.18i|%.2t|%Z|%L"
-
+SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
 WARN_AFTER=${1:-'120'}
 KILL_AFTER=${2:-'600'}
 KILLED_DIRS_FILE="./rerun_list.txt"
@@ -17,7 +15,11 @@ parse_timelimit_to_seconds() {
   local s="${1:-}"
   s="${s// /}"
 
-  local days=0 hours=0 mins=0 secs=0 left right
+  if [[ -z "$s" || "$s" == "N/A" || "$s" == "UNLIMITED" || "$s" == "INVALID" ]]; then
+    return 1
+  fi
+
+  local days=0 hours=0 mins=0 secs=0 right a b c
   if [[ "$s" == *-* ]]; then
     days="${s%%-*}"
     right="${s#*-}"
@@ -28,13 +30,13 @@ parse_timelimit_to_seconds() {
   IFS=':' read -r a b c <<< "$right"
 
   if [[ -n "${c:-}" ]]; then
-    # a:b:c -> H:M:S
+    # H:M:S
     hours="$a"; mins="$b"; secs="$c"
   elif [[ -n "${b:-}" ]]; then
-    # a:b -> M:S
+    # M:S
     mins="$a"; secs="$b"
   else
-    # a -> S
+    # S
     secs="$a"
   fi
 
@@ -66,7 +68,7 @@ maybe_write_stopcar() {
     fi
 
     if ( cd "$workdir" && echo "$content" > STOPCAR ); then
-      echo "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=5m) | wrote STOPCAR: '$content'"
+      echo "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=10m) | wrote STOPCAR"
     else
       echo "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to write STOPCAR" >&2
     fi
@@ -83,9 +85,9 @@ check_once() {
     exit 0
   fi
 
-  # jobid|state|workdir|timeleft
-  echo "$jobs" \
-  | while IFS='|' read -r jobid state workdir timeleft; do
+  # jobid | state | timeleft | workdir
+  echo "$jobs" | awk '{print $1"\t"$4"\t"$(NF-1)"\t"$NF}' \
+  | while IFS=$'\t' read -r jobid state workdir timeleft; do
       [[ -z "${jobid:-}" || -z "${workdir:-}" ]] && continue
 
       # only check RUNNING jobs
@@ -99,6 +101,7 @@ check_once() {
         continue
       fi
 
+      # if time left <= 10 minutes, write STOPCAR in workdir
       maybe_write_stopcar "$jobid" "$workdir" "${timeleft:-}"
 
       newest_epoch=$(
