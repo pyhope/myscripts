@@ -11,7 +11,7 @@ WARN_AFTER=${1:-'120'}
 KILL_AFTER=${2:-'600'}
 KILLED_DIRS_FILE="./rerun_list.txt"
 
-STOPCAR_THRESHOLD_SEC=$((5 * 60))
+STOPCAR_THRESHOLD_SEC=$((10 * 60))
 
 parse_timelimit_to_seconds() {
   local s="${1:-}"
