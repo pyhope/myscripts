@@ -45,7 +45,7 @@ parse_timelimit_to_seconds() {
   [[ "$mins" =~ ^[0-9]+$ ]] || return 1
   [[ "$secs" =~ ^[0-9]+$ ]] || return 1
 
-  echo $(( days*86400 + hours*3600 + mins*60 + secs ))
+  echo $(( 10#$days*86400 + 10#$hours*3600 + 10#$mins*60 + 10#$secs ))
 }
 
 maybe_write_stopcar() {
