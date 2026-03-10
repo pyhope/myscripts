@@ -6,7 +6,7 @@ set -euo pipefail
 USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
 WARN_AFTER=${1:-'180'}
-KILL_AFTER=${2:-'1200'}
+KILL_AFTER=${2:-'3600'}
 KILLED_DIRS_FILE="./rerun_list.txt"
 
 STOPCAR_THRESHOLD_SEC=$((10 * 60))
