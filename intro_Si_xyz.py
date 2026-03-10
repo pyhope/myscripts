@@ -4,11 +4,14 @@
 import random
 import argparse
 
-def replace_fe_with_si(
+
+def replace_fe_with_element(
     input_file,
     output_file,
     n_replace=8,
     seed=None,
+    keep_k=False,
+    target_element="Si",
 ):
     if seed is not None:
         random.seed(seed)
@@ -23,8 +26,9 @@ def replace_fe_with_si(
     natoms_line = lines[0].rstrip("\n")
     comment_line = lines[1].rstrip("\n")
 
-    # Remove ':k:R:1' from header
-    comment_line = comment_line.replace(":k:R:1", "")
+    # Remove ':k:R:1' from header only if k is not kept
+    if not keep_k:
+        comment_line = comment_line.replace(":k:R:1", "")
 
     atom_lines = lines[2:]
 
@@ -65,33 +69,50 @@ def replace_fe_with_si(
     selected = random.sample(candidate_indices, n_replace)
 
     for idx in selected:
-        parsed_atoms[idx]["species"] = "Si"
+        parsed_atoms[idx]["species"] = target_element
 
-    # Move all Si atoms to the end
-    non_si_atoms = [atom for atom in parsed_atoms if atom["species"] != "Si"]
-    si_atoms = [atom for atom in parsed_atoms if atom["species"] == "Si"]
-    final_atoms = non_si_atoms + si_atoms
+    # Move all replaced atoms (target element) to the end
+    non_target_atoms = [atom for atom in parsed_atoms if atom["species"] != target_element]
+    target_atoms = [atom for atom in parsed_atoms if atom["species"] == target_element]
+    final_atoms = non_target_atoms + target_atoms
 
     # Write output
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(f"{len(final_atoms)}\n")
         f.write(comment_line + "\n")
         for atom in final_atoms:
-            f.write(f"{atom['species']} {' '.join(atom['xyz'])}\n")
+            if keep_k:
+                f.write(f"{atom['species']} {' '.join(atom['xyz'])} {atom['k']}\n")
+            else:
+                f.write(f"{atom['species']} {' '.join(atom['xyz'])}\n")
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--input_file", "-i", type=str, default="prox.xyz",  help="input .xyz file")
+parser.add_argument("--input_file", "-i", type=str, default="prox.xyz", help="input .xyz file")
 parser.add_argument("--output_file", "-o", type=str, default="output.xyz", help="output .xyz file")
-parser.add_argument("--n_replace", "-n", type=int, default=8, help="number of Fe atoms to replace with Si")
+parser.add_argument("--n_replace", "-n", type=int, default=8, help="number of Fe atoms to replace")
 parser.add_argument("--seed", type=int, default=None, help="random seed for reproducibility (optional)")
+parser.add_argument(
+    "--keep_k", "-k",
+    action="store_true",
+    help="keep the last k column in output and preserve ':k:R:1' in the header",
+)
+parser.add_argument(
+    "--element", "-e",
+    type=str,
+    default="Si",
+    help="target element used to replace Fe (default: Si)",
+)
 
 args = parser.parse_args()
 
-replace_fe_with_si(
+replace_fe_with_element(
     input_file=args.input_file,
     output_file=args.output_file,
     n_replace=args.n_replace,
     seed=args.seed,
+    keep_k=args.keep_k,
+    target_element=args.element,
 )
 
 print(f"Done. Output written to: {args.output_file}")
