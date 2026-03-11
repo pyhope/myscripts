@@ -13,6 +13,7 @@ parser.add_argument("--xmin", "-x1", type=float, default=-8, help="Minimum value
 parser.add_argument("--xmax", "-x2", type=float, default=17, help="Maximum value of x-axis (proximity)")
 parser.add_argument("--xnum", "-xn", type=int, default=25001, help="Number of data points in x-axis (proximity)")
 parser.add_argument("--output_pkl", "-o", type=str, default='data.pkl', help="Output file for the final data in pkl format")
+parser.add_argument("--poscar", "-pos", action="store_true", default=False, help="Calculate system parameters from POSCAR")
 
 args = parser.parse_args()
 path = args.path + '/'
@@ -103,16 +104,36 @@ with open('parameters.txt', 'w') as file:
     for i in int_dirs:
         file.write(f'{i} {Info[i]["lw"]} {Info[i]["chi"]}\n')
 
-with open(path + str(int_dirs[-1]) + '/selected.dump', 'r') as file:
-    lines = file.readlines()
-    n_atoms = int(lines[3].strip())
-    L_x = float(lines[5].split()[1]) - float(lines[5].split()[0])
-    L_y = float(lines[6].split()[1]) - float(lines[6].split()[0])
-    L_z = float(lines[7].split()[1]) - float(lines[7].split()[0])
-    V = L_x * L_y * L_z
-    if n_atoms != Info['Mg'] + Info['O'] + Info['Fe'] + Info['W']:
-        print("Error: Inconsistent number of atoms")
-        exit()
+if args.poscar:
+    with open(path + str(int_dirs[-1]) + '/POSCAR', 'r') as file:
+        lines = file.readlines()
+        scale = float(lines[1].strip())
+
+        a = np.array([float(x) for x in lines[2].split()[:3]]) * scale
+        b = np.array([float(x) for x in lines[3].split()[:3]]) * scale
+        c = np.array([float(x) for x in lines[4].split()[:3]]) * scale
+
+        L_x = np.linalg.norm(a)
+        L_y = np.linalg.norm(b)
+        L_z = np.linalg.norm(c)
+
+        V = abs(np.dot(a, np.cross(b, c)))
+
+        atom_counts = [int(x) for x in lines[6].split()]
+        n_atoms = sum(atom_counts)
+
+else:
+    with open(path + str(int_dirs[-1]) + '/selected.dump', 'r') as file:
+        lines = file.readlines()
+        n_atoms = int(lines[3].strip())
+        L_x = float(lines[5].split()[1]) - float(lines[5].split()[0])
+        L_y = float(lines[6].split()[1]) - float(lines[6].split()[0])
+        L_z = float(lines[7].split()[1]) - float(lines[7].split()[0])
+        V = L_x * L_y * L_z
+
+if n_atoms != Info['Mg'] + Info['O'] + Info['Fe'] + Info['W']:
+    print("Error: Inconsistent number of atoms")
+    exit()
 
 lw = np.mean([Info[i]['lw'] for i in int_dirs_selected])
 chi = np.mean([Info[i]['chi'] for i in int_dirs_selected])
