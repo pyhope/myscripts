@@ -9,7 +9,7 @@ WARN_AFTER=${1:-'180'}
 KILL_AFTER=${2:-'3600'}
 KILLED_DIRS_FILE="./rerun_list.txt"
 
-STOPCAR_THRESHOLD_SEC=$((10 * 60))
+STOPCAR_THRESHOLD_SEC=$((20 * 60))
 
 parse_timelimit_to_seconds() {
   local s="${1:-}"
@@ -60,7 +60,7 @@ maybe_write_stopcar() {
 
   if (( left_sec <= STOPCAR_THRESHOLD_SEC )); then
     local stopcar_path="$workdir/STOPCAR"
-    local content='LABORT = .TRUE.'
+    local content='LSTOP = .TRUE.'
 
     if [[ -f "$stopcar_path" ]] && grep -qxF "$content" "$stopcar_path"; then
       echo "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | STOPCAR already set"
@@ -68,7 +68,7 @@ maybe_write_stopcar() {
     fi
 
     if ( cd "$workdir" && echo "$content" > STOPCAR ); then
-      echo "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=10m) | wrote STOPCAR"
+      echo "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=threshold) | wrote STOPCAR"
     else
       echo "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to write STOPCAR" >&2
     fi
@@ -101,7 +101,6 @@ check_once() {
         continue
       fi
 
-      # if time left <= 10 minutes, write STOPCAR in workdir
       maybe_write_stopcar "$jobid" "$workdir" "${timeleft:-}"
 
       newest_epoch=$(
