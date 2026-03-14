@@ -7,8 +7,8 @@ USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
 WARN_AFTER=${1:-'180'}
 KILL_AFTER=${2:-'900'}
-KILLED_DIRS_FILE="./rerun_list.txt"
-LOG_FILE="./sq.log"
+KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
+LOG_FILE="$(pwd)/sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
 RESTART_ON_KILL=0
@@ -36,13 +36,10 @@ parse_timelimit_to_seconds() {
   IFS=':' read -r a b c <<< "$right"
 
   if [[ -n "${c:-}" ]]; then
-    # H:M:S
     hours="$a"; mins="$b"; secs="$c"
   elif [[ -n "${b:-}" ]]; then
-    # M:S
     mins="$a"; secs="$b"
   else
-    # S
     secs="$a"
   fi
 
@@ -94,10 +91,15 @@ run_restart_script() {
     return 1
   fi
 
-  if ( cd "$workdir" && vml_restart ); then
-    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart"
+  log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | starting vml_restart"
+
+  if (
+    cd "$workdir" && \
+    vml_restart >> "$LOG_FILE" 2>&1
+  ); then
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart successfully"
   else
-    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to execute vml_restart"
+    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart failed"
     return 1
   fi
 }
@@ -120,7 +122,6 @@ check_once() {
   | while IFS=$'\t' read -r jobid state workdir timeleft; do
       [[ -z "${jobid:-}" || -z "${workdir:-}" ]] && continue
 
-      # only check RUNNING jobs
       if [[ "$state" != "R" ]]; then
         continue
       fi
@@ -207,7 +208,7 @@ echo "  norestart -> disable automatic vml_restart"
 echo "  status    -> show current mode"
 echo "  check     -> run check immediately"
 echo "  quit      -> exit script"
-echo "Periodic check output will be appended to: $LOG_FILE"
+echo "Periodic check output and vml_restart output will be appended to: $LOG_FILE"
 
 while :; do
   check_once
