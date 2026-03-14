@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -e
+shopt -s nullglob
+
+threshold=$(grep 'BEEF' ML_LOGFILE | tail -n 1 | awk '{print $6}')
+
+if [[ -z "${threshold:-}" ]]; then
+    echo "Error: failed to extract the threshold in ML_LOGFILE." >&2
+    exit 1
+fi
+
+if grep -q '^[[:space:]]*ML_CTIFOR' INCAR; then
+    sed -i "s/^[[:space:]]*ML_CTIFOR.*/ML_CTIFOR = $threshold/" INCAR
+else
+    echo "ML_CTIFOR = $threshold" >> INCAR
+fi
+
+mv CONTCAR POSCAR
+mv ML_ABN ML_AB
+
+for f in ML_LOGFILE*; do
+    [[ -f "$f" ]] && mv -- "$f" "$f.old"
+done
+
+for f in slurm*; do
+    [[ -f "$f" ]] && mv -- "$f" "$f.old"
+done
+
+mv XDATCAR XDATCAR.old
+
+find . -maxdepth 1 -type f ! \( -name 'INCAR' -o -name 'POSCAR' -o -name 'POTCAR' -o -name 'KPOINTS' -o -name 'ML_AB' -o -name '*.old' -o -name '*.slurm' -o -name '*.sh' \) -exec rm -f {} +
+
+echo "ML_CTIFOR = $threshold"
+sbatch run.sh

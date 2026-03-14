@@ -6,10 +6,16 @@ set -euo pipefail
 USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
 WARN_AFTER=${1:-'180'}
-KILL_AFTER=${2:-'1800'}
+KILL_AFTER=${2:-'900'}
 KILLED_DIRS_FILE="./rerun_list.txt"
+LOG_FILE="./sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
+RESTART_ON_KILL=0
+
+log_msg() {
+  echo "$*" >> "$LOG_FILE"
+}
 
 parse_timelimit_to_seconds() {
   local s="${1:-}"
@@ -40,12 +46,12 @@ parse_timelimit_to_seconds() {
     secs="$a"
   fi
 
-  [[ "$days" =~ ^[0-9]+$ ]] || return 1
+  [[ "$days"  =~ ^[0-9]+$ ]] || return 1
   [[ "$hours" =~ ^[0-9]+$ ]] || return 1
-  [[ "$mins" =~ ^[0-9]+$ ]] || return 1
-  [[ "$secs" =~ ^[0-9]+$ ]] || return 1
+  [[ "$mins"  =~ ^[0-9]+$ ]] || return 1
+  [[ "$secs"  =~ ^[0-9]+$ ]] || return 1
 
-  echo $(( 10#$days*86400 + 10#$hours*3600 + 10#$mins*60 + 10#$secs ))
+  echo $((10#$days*86400 + 10#$hours*3600 + 10#$mins*60 + 10#$secs))
 }
 
 maybe_write_stopcar() {
@@ -63,41 +69,64 @@ maybe_write_stopcar() {
     local content='LSTOP = .TRUE.'
 
     if [[ -f "$stopcar_path" ]] && grep -qxF "$content" "$stopcar_path"; then
-      echo "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | STOPCAR already set"
+      log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | STOPCAR already set"
       return 0
     fi
 
     if ( cd "$workdir" && echo "$content" > STOPCAR ); then
-      echo "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=threshold) | wrote STOPCAR"
+      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=threshold) | wrote STOPCAR"
     else
-      echo "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to write STOPCAR" >&2
+      log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to write STOPCAR"
     fi
+  fi
+}
+
+run_restart_script() {
+  local jobid="$1"
+  local workdir="$2"
+
+  if (( RESTART_ON_KILL == 0 )); then
+    return 0
+  fi
+
+  if ! command -v vml_restart >/dev/null 2>&1; then
+    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart not found in PATH"
+    return 1
+  fi
+
+  if ( cd "$workdir" && vml_restart ); then
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart"
+  else
+    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to execute vml_restart"
+    return 1
   fi
 }
 
 check_once() {
   local now_epoch
+  local jobs
   now_epoch=$(date +%s)
 
   jobs=$(squeue -u "$USER_ID" --noheader --format="$SQUEUE_FMT")
   if [[ -z "$jobs" ]]; then
-    echo "No jobs running for $USER_ID, exiting."
+    log_msg "No jobs running for $USER_ID, exiting."
     exit 0
   fi
 
-  # jobid | state | timeleft | workdir
+  log_msg "===== $(date '+%Y-%m-%d %H:%M:%S%z') ====="
+
+  # jobid | state | workdir | timeleft
   echo "$jobs" | awk '{print $1"\t"$4"\t"$(NF-1)"\t"$NF}' \
   | while IFS=$'\t' read -r jobid state workdir timeleft; do
       [[ -z "${jobid:-}" || -z "${workdir:-}" ]] && continue
 
       # only check RUNNING jobs
       if [[ "$state" != "R" ]]; then
-        # echo "INFO: JOBID=$jobid | STATE=$state | WORK_DIR=$workdir | skip (not running)"
         continue
       fi
 
       if [[ ! -d "$workdir" ]]; then
-        echo "WARN: JOBID=$jobid | STATE=$state | WORK_DIR=$workdir | directory not found"
+        log_msg "WARN: JOBID=$jobid | STATE=$state | WORK_DIR=$workdir | directory not found"
         continue
       fi
 
@@ -111,28 +140,76 @@ check_once() {
       diff=$(( now_epoch - newest_epoch ))
 
       if (( diff >= KILL_AFTER )); then
+        local last_str idle_min idle_sec
         last_str=$(date -d "@$newest_epoch" '+%Y-%m-%d %H:%M:%S%z')
         idle_min=$(( diff / 60 ))
         idle_sec=$(( diff % 60 ))
-        echo "STALE: scancel $jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
+        log_msg "STALE: scancel $jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
 
         if scancel "$jobid"; then
           printf '%s\n' "$workdir" >> "$KILLED_DIRS_FILE"
+          run_restart_script "$jobid" "$workdir"
         else
-          echo "ERROR: failed to scancel $jobid" >&2
+          log_msg "ERROR: failed to scancel $jobid"
         fi
 
       elif (( diff >= WARN_AFTER )); then
+        local last_str idle_min idle_sec
         last_str=$(date -d "@$newest_epoch" '+%Y-%m-%d %H:%M:%S%z')
         idle_min=$(( diff / 60 ))
         idle_sec=$(( diff % 60 ))
-        echo "WARN: JOBID=$jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
+        log_msg "WARN: JOBID=$jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
       fi
     done
 }
 
+wait_with_commands() {
+  local remaining="$1"
+  local cmd
+
+  while (( remaining > 0 )); do
+    if read -r -t 1 cmd; then
+      case "$cmd" in
+        restart)
+          RESTART_ON_KILL=1
+          echo "COMMAND: restart mode ON"
+          ;;
+        norestart)
+          RESTART_ON_KILL=0
+          echo "COMMAND: restart mode OFF"
+          ;;
+        status)
+          echo "STATUS: RESTART_ON_KILL=$RESTART_ON_KILL"
+          ;;
+        check)
+          echo "COMMAND: immediate check"
+          check_once
+          ;;
+        quit|exit)
+          echo "COMMAND: exit"
+          exit 0
+          ;;
+        "")
+          ;;
+        *)
+          echo "Unknown command: $cmd"
+          echo "Available commands: restart | norestart | status | check | quit"
+          ;;
+      esac
+    fi
+    remaining=$((remaining - 1))
+  done
+}
+
+echo "Interactive commands enabled:"
+echo "  restart   -> kill stale job and then run vml_restart in its workdir"
+echo "  norestart -> disable automatic vml_restart"
+echo "  status    -> show current mode"
+echo "  check     -> run check immediately"
+echo "  quit      -> exit script"
+echo "Periodic check output will be appended to: $LOG_FILE"
+
 while :; do
-  echo "===== $(date '+%Y-%m-%d %H:%M:%S%z') ====="
   check_once
-  sleep "$WARN_AFTER"
+  wait_with_commands "$WARN_AFTER"
 done
