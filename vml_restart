@@ -1,9 +1,17 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 shopt -s nullglob
 
-threshold=$(grep 'BEEF' ML_LOGFILE | tail -n 1 | awk '{print $6}')
+[[ -f ML_LOGFILE ]] || { echo "Error: ML_LOGFILE not found." >&2; exit 1; }
+[[ -f INCAR ]] || { echo "Error: INCAR not found." >&2; exit 1; }
+[[ -f run.sh ]] || { echo "Error: run.sh not found." >&2; exit 1; }
+
+if [[ -n "${1:-}" ]]; then
+    [[ "$1" =~ ^[0-9]+$ ]] || { echo "Error: time argument must be an integer hour." >&2; exit 1; }
+fi
+
+threshold=$(awk '/BEEF/ {x=$6} END{print x}' ML_LOGFILE)
 
 if [[ -z "${threshold:-}" ]]; then
     echo "Error: failed to extract the threshold in ML_LOGFILE." >&2
@@ -16,22 +24,29 @@ else
     echo "ML_CTIFOR = $threshold" >> INCAR
 fi
 
-mv CONTCAR POSCAR
-mv ML_ABN ML_AB
+if [[ -n "${1:-}" ]]; then
+    sed -E -i "s/--time=[0-9]{1,2}:[0-9]{2}:[0-9]{2}/--time=${1}:00:00/g" run.sh
+fi
 
-for f in ML_LOGFILE*; do
+[[ -f CONTCAR ]] && mv -- CONTCAR POSCAR
+[[ -f ML_ABN ]] && mv -- ML_ABN ML_AB
+
+for f in ML_LOGFILE* slurm* XDATCAR*; do
     [[ -f "$f" ]] && mv -- "$f" "$f.old"
 done
 
-for f in slurm*; do
-    [[ -f "$f" ]] && mv -- "$f" "$f.old"
-done
-
-for f in XDATCAR*; do
-    [[ -f "$f" ]] && mv -- "$f" "$f.old"
-done
-
-find . -maxdepth 1 -type f ! \( -name 'INCAR' -o -name 'POSCAR' -o -name 'POTCAR' -o -name 'KPOINTS' -o -name 'ML_AB' -o -name '*.old' -o -name '*.slurm' -o -name '*.sh' \) -exec rm -f {} +
+find . -maxdepth 1 -type f ! \( \
+    -name 'INCAR' -o \
+    -name 'POSCAR' -o \
+    -name 'POTCAR' -o \
+    -name 'KPOINTS' -o \
+    -name 'ML_AB' -o \
+    -name '*.old' -o \
+    -name '*.slurm' -o \
+    -name '*.sh' \
+\) -exec rm -f {} +
 
 echo "ML_CTIFOR = $threshold"
+[[ -n "${1:-}" ]] && echo "Updated run.sh time limit to: ${1}:00:00"
+
 sbatch run.sh

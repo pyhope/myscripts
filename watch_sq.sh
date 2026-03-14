@@ -11,6 +11,8 @@ KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
 LOG_FILE="$(pwd)/sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
+RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))   # <= 3 hours: do not restart
+RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))   # > 3 and <= 8 hours: use argument 5
 RESTART_ON_KILL=0
 
 log_msg() {
@@ -81,6 +83,7 @@ maybe_write_stopcar() {
 run_restart_script() {
   local jobid="$1"
   local workdir="$2"
+  local left_str="$3"
 
   if (( RESTART_ON_KILL == 0 )); then
     return 0
@@ -91,15 +94,37 @@ run_restart_script() {
     return 1
   fi
 
-  log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | starting vml_restart"
+  local left_sec restart_args=()
+
+  if ! left_sec="$(parse_timelimit_to_seconds "$left_str")"; then
+    log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | cannot parse time left, using default vml_restart"
+  else
+    if (( left_sec <= RESTART_SKIP_THRESHOLD_SEC )); then
+      log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=3h) | skip vml_restart"
+      return 0
+    elif (( left_sec <= RESTART_ARG5_THRESHOLD_SEC )); then
+      restart_args=(5)
+      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (3h-8h) | starting vml_restart 5"
+    else
+      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (>8h) | starting vml_restart"
+    fi
+  fi
 
   if (
     cd "$workdir" && \
-    vml_restart >> "$LOG_FILE" 2>&1
+    vml_restart "${restart_args[@]}" >> "$LOG_FILE" 2>&1
   ); then
-    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart successfully"
+    if (( ${#restart_args[@]} > 0 )); then
+      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart ${restart_args[*]} successfully"
+    else
+      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart successfully"
+    fi
   else
-    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart failed"
+    if (( ${#restart_args[@]} > 0 )); then
+      log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart ${restart_args[*]} failed"
+    else
+      log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart failed"
+    fi
     return 1
   fi
 }
@@ -149,7 +174,7 @@ check_once() {
 
         if scancel "$jobid"; then
           printf '%s\n' "$workdir" >> "$KILLED_DIRS_FILE"
-          run_restart_script "$jobid" "$workdir"
+          run_restart_script "$jobid" "$workdir" "${timeleft:-}"
         else
           log_msg "ERROR: failed to scancel $jobid"
         fi
@@ -203,7 +228,7 @@ wait_with_commands() {
 }
 
 echo "Interactive commands enabled:"
-echo "  restart   -> kill stale job and then run vml_restart in its workdir"
+echo "  restart   -> kill stale job and conditionally run vml_restart in its workdir"
 echo "  norestart -> disable automatic vml_restart"
 echo "  status    -> show current mode"
 echo "  check     -> run check immediately"
