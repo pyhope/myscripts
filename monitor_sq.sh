@@ -7,7 +7,7 @@ USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
 
 # Default thresholds (seconds)
-WARN_AFTER=$((3 * 60))
+WARN_AFTER=$((5 * 60))
 KILL_AFTER=$((30 * 60))
 
 KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
