@@ -5,8 +5,11 @@ set -euo pipefail
 
 USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
-WARN_AFTER=${1:-180}
-KILL_AFTER=${2:-900}
+
+# Default thresholds (seconds)
+WARN_AFTER=$((3 * 60))
+KILL_AFTER=$((30 * 60))
+
 KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
 LOG_FILE="$(pwd)/sq.log"
 
@@ -14,7 +17,7 @@ STOPCAR_THRESHOLD_SEC=$((20 * 60))
 RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))   # <= 3 hours: do not restart
 RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))   # > 3 and <= 8 hours: use argument 5
 
-# Modes:
+# Default mode: monitor only
 # monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0
 # cancel  -> CANCEL_ON_STALE=1, RESTART_ON_KILL=0
 # restart -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1
@@ -60,7 +63,7 @@ parse_timelimit_to_seconds() {
 }
 
 print_status() {
-  local mode
+  local mode warn_min kill_min
   if (( CANCEL_ON_STALE == 0 )); then
     mode="monitor_only"
   elif (( RESTART_ON_KILL == 0 )); then
@@ -69,7 +72,10 @@ print_status() {
     mode="monitor_cancel_restart"
   fi
 
-  echo "STATUS: MODE=$mode"
+  warn_min=$((WARN_AFTER / 60))
+  kill_min=$((KILL_AFTER / 60))
+
+  echo "STATUS: MODE=$mode | WARN_AFTER=${warn_min} min | KILL_AFTER=${kill_min} min"
 }
 
 maybe_write_stopcar() {
@@ -161,7 +167,6 @@ check_once() {
 
   log_msg "===== $(date '+%Y-%m-%d %H:%M:%S%z') ====="
 
-  # jobid | state | workdir | timeleft
   echo "$jobs" | awk '{print $1"\t"$4"\t"$(NF-1)"\t"$NF}' \
   | while IFS=$'\t' read -r jobid state workdir timeleft; do
       [[ -z "${jobid:-}" || -z "${workdir:-}" ]] && continue
@@ -213,12 +218,30 @@ check_once() {
     done
 }
 
+set_warn_minutes() {
+  local m="$1"
+  [[ "$m" =~ ^[0-9]+$ ]] || { echo "ERROR: warn minutes must be a positive integer"; return 1; }
+  (( m > 0 )) || { echo "ERROR: warn minutes must be > 0"; return 1; }
+  WARN_AFTER=$((m * 60))
+  echo "COMMAND: WARN_AFTER set to ${m} min"
+  print_status
+}
+
+set_kill_minutes() {
+  local m="$1"
+  [[ "$m" =~ ^[0-9]+$ ]] || { echo "ERROR: kill minutes must be a positive integer"; return 1; }
+  (( m > 0 )) || { echo "ERROR: kill minutes must be > 0"; return 1; }
+  KILL_AFTER=$((m * 60))
+  echo "COMMAND: KILL_AFTER set to ${m} min"
+  print_status
+}
+
 wait_with_commands() {
   local remaining="$1"
-  local cmd
+  local cmd arg1
 
   while (( remaining > 0 )); do
-    if read -r -t 1 cmd; then
+    if read -r -t 1 cmd arg1; then
       case "$cmd" in
         monitor)
           CANCEL_ON_STALE=0
@@ -245,6 +268,20 @@ wait_with_commands() {
           echo "COMMAND: immediate check"
           check_once
           ;;
+        warn)
+          if [[ -z "${arg1:-}" ]]; then
+            echo "Usage: warn <minutes>"
+          else
+            set_warn_minutes "$arg1"
+          fi
+          ;;
+        kill)
+          if [[ -z "${arg1:-}" ]]; then
+            echo "Usage: kill <minutes>"
+          else
+            set_kill_minutes "$arg1"
+          fi
+          ;;
         quit|exit)
           echo "COMMAND: exit"
           exit 0
@@ -253,7 +290,6 @@ wait_with_commands() {
           ;;
         *)
           echo "Unknown command: $cmd"
-          echo "Available commands: monitor | cancel | restart | status | check | quit"
           ;;
       esac
     fi
@@ -262,12 +298,14 @@ wait_with_commands() {
 }
 
 echo "Interactive commands enabled:"
-echo "  monitor   -> monitor only, do not cancel, do not restart"
-echo "  cancel    -> monitor and cancel stale jobs, but do not restart"
-echo "  restart   -> monitor, cancel stale jobs, and conditionally run vml_restart"
-echo "  status    -> show current mode"
-echo "  check     -> run check immediately"
-echo "  quit      -> exit script"
+echo "  monitor         -> monitor only, do not cancel, do not restart (default)"
+echo "  cancel          -> monitor and cancel stale jobs, but do not restart"
+echo "  restart         -> monitor, cancel stale jobs, and conditionally run vml_restart"
+echo "  warn <minutes>  -> set WARN_AFTER in minutes"
+echo "  kill <minutes>  -> set KILL_AFTER in minutes"
+echo "  status          -> show current mode and thresholds"
+echo "  check           -> run check immediately"
+echo "  quit            -> exit script"
 echo "Periodic check output and vml_restart output will be appended to: $LOG_FILE"
 
 print_status
