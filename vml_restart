@@ -27,7 +27,9 @@ for f in slurm*; do
     [[ -f "$f" ]] && mv -- "$f" "$f.old"
 done
 
-mv XDATCAR XDATCAR.old
+for f in XDATCAR*; do
+    [[ -f "$f" ]] && mv -- "$f" "$f.old"
+done
 
 find . -maxdepth 1 -type f ! \( -name 'INCAR' -o -name 'POSCAR' -o -name 'POTCAR' -o -name 'KPOINTS' -o -name 'ML_AB' -o -name '*.old' -o -name '*.slurm' -o -name '*.sh' \) -exec rm -f {} +
 
