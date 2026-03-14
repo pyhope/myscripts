@@ -5,14 +5,20 @@ set -euo pipefail
 
 USER_ID="yp0007"
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
-WARN_AFTER=${1:-'180'}
-KILL_AFTER=${2:-'900'}
+WARN_AFTER=${1:-180}
+KILL_AFTER=${2:-900}
 KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
 LOG_FILE="$(pwd)/sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
 RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))   # <= 3 hours: do not restart
 RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))   # > 3 and <= 8 hours: use argument 5
+
+# Modes:
+# monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0
+# cancel  -> CANCEL_ON_STALE=1, RESTART_ON_KILL=0
+# restart -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1
+CANCEL_ON_STALE=1
 RESTART_ON_KILL=0
 
 log_msg() {
@@ -51,6 +57,19 @@ parse_timelimit_to_seconds() {
   [[ "$secs"  =~ ^[0-9]+$ ]] || return 1
 
   echo $((10#$days*86400 + 10#$hours*3600 + 10#$mins*60 + 10#$secs))
+}
+
+print_status() {
+  local mode
+  if (( CANCEL_ON_STALE == 0 )); then
+    mode="monitor_only"
+  elif (( RESTART_ON_KILL == 0 )); then
+    mode="monitor_cancel"
+  else
+    mode="monitor_cancel_restart"
+  fi
+
+  echo "STATUS: MODE=$mode"
 }
 
 maybe_write_stopcar() {
@@ -170,13 +189,18 @@ check_once() {
         last_str=$(date -d "@$newest_epoch" '+%Y-%m-%d %H:%M:%S%z')
         idle_min=$(( diff / 60 ))
         idle_sec=$(( diff % 60 ))
-        log_msg "STALE: scancel $jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
 
-        if scancel "$jobid"; then
-          printf '%s\n' "$workdir" >> "$KILLED_DIRS_FILE"
-          run_restart_script "$jobid" "$workdir" "${timeleft:-}"
+        if (( CANCEL_ON_STALE == 0 )); then
+          log_msg "STALE: JOBID=$jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A} | monitor-only, no scancel"
         else
-          log_msg "ERROR: failed to scancel $jobid"
+          log_msg "STALE: scancel $jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
+
+          if scancel "$jobid"; then
+            printf '%s\n' "$workdir" >> "$KILLED_DIRS_FILE"
+            run_restart_script "$jobid" "$workdir" "${timeleft:-}"
+          else
+            log_msg "ERROR: failed to scancel $jobid"
+          fi
         fi
 
       elif (( diff >= WARN_AFTER )); then
@@ -196,16 +220,26 @@ wait_with_commands() {
   while (( remaining > 0 )); do
     if read -r -t 1 cmd; then
       case "$cmd" in
-        restart)
-          RESTART_ON_KILL=1
-          echo "COMMAND: restart mode ON"
-          ;;
-        norestart)
+        monitor)
+          CANCEL_ON_STALE=0
           RESTART_ON_KILL=0
-          echo "COMMAND: restart mode OFF"
+          echo "COMMAND: monitor-only mode ON"
+          print_status
+          ;;
+        cancel)
+          CANCEL_ON_STALE=1
+          RESTART_ON_KILL=0
+          echo "COMMAND: monitor+cancel mode ON"
+          print_status
+          ;;
+        restart)
+          CANCEL_ON_STALE=1
+          RESTART_ON_KILL=1
+          echo "COMMAND: monitor+cancel+restart mode ON"
+          print_status
           ;;
         status)
-          echo "STATUS: RESTART_ON_KILL=$RESTART_ON_KILL"
+          print_status
           ;;
         check)
           echo "COMMAND: immediate check"
@@ -219,7 +253,7 @@ wait_with_commands() {
           ;;
         *)
           echo "Unknown command: $cmd"
-          echo "Available commands: restart | norestart | status | check | quit"
+          echo "Available commands: monitor | cancel | restart | status | check | quit"
           ;;
       esac
     fi
@@ -228,12 +262,15 @@ wait_with_commands() {
 }
 
 echo "Interactive commands enabled:"
-echo "  restart   -> kill stale job and conditionally run vml_restart in its workdir"
-echo "  norestart -> disable automatic vml_restart"
+echo "  monitor   -> monitor only, do not cancel, do not restart"
+echo "  cancel    -> monitor and cancel stale jobs, but do not restart"
+echo "  restart   -> monitor, cancel stale jobs, and conditionally run vml_restart"
 echo "  status    -> show current mode"
 echo "  check     -> run check immediately"
 echo "  quit      -> exit script"
 echo "Periodic check output and vml_restart output will be appended to: $LOG_FILE"
+
+print_status
 
 while :; do
   check_once
