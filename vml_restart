@@ -11,6 +11,24 @@ if [[ -n "${1:-}" ]]; then
     [[ "$1" =~ ^[0-9]+$ ]] || { echo "Error: time argument must be an integer hour." >&2; exit 1; }
 fi
 
+rotate_backup() {
+    local base="$1"
+    local n=1
+
+    [[ -f "$base" ]] || return 0
+
+    while [[ -f "${base}.old.${n}" ]]; do
+        ((n++))
+    done
+
+    for ((i=n; i>=2; i--)); do
+        mv -- "${base}.old.$((i-1))" "${base}.old.${i}"
+    done
+
+    [[ -f "${base}.old" ]] && mv -- "${base}.old" "${base}.old.1"
+    mv -- "$base" "${base}.old"
+}
+
 threshold=$(awk '/BEEF/ {x=$6} END{print x}' ML_LOGFILE)
 
 if [[ -z "${threshold:-}" ]]; then
@@ -31,7 +49,11 @@ fi
 [[ -f CONTCAR ]] && mv -- CONTCAR POSCAR
 [[ -f ML_ABN ]] && mv -- ML_ABN ML_AB
 
-for f in ML_LOGFILE* slurm* XDATCAR*; do
+for f in ML_LOGFILE XDATCAR; do
+    rotate_backup "$f"
+done
+
+for f in slurm*; do
     [[ -f "$f" ]] && mv -- "$f" "$f.old"
 done
 
@@ -42,7 +64,8 @@ find . -maxdepth 1 -type f ! \( \
     -name 'KPOINTS' -o \
     -name 'ML_AB' -o \
     -name '*.old' -o \
-    -name '*.slurm' -o \
+    -name 'ML_LOGFILE.old.*' -o \
+    -name 'XDATCAR.old.*' -o \
     -name '*.sh' \
 \) -exec rm -f {} +
 

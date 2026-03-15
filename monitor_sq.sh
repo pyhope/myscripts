@@ -14,8 +14,9 @@ KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
 LOG_FILE="$(pwd)/sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
-RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))   # <= 3 hours: do not restart
-RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))   # > 3 and <= 8 hours: use argument 5
+RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))    # <= 3 hours: do not restart
+RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))    # > 3 and <= 8 hours: use argument 5
+CLEAN_RESTART_THRESHOLD_SEC=$((21 * 3600))  # > 21 hours: use vml_clean_restart
 
 # Default mode: monitor only
 # monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0
@@ -105,52 +106,59 @@ maybe_write_stopcar() {
   fi
 }
 
+run_logged_command() {
+  local jobid="$1"
+  local workdir="$2"
+  local cmd_name="$3"
+  shift 3
+  local cmd=( "$cmd_name" "$@" )
+
+  if ! command -v "$cmd_name" >/dev/null 2>&1; then
+    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | $cmd_name not found in PATH"
+    return 1
+  fi
+
+  if (
+    cd "$workdir" && \
+    "${cmd[@]}" >> "$LOG_FILE" 2>&1
+  ); then
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed ${cmd[*]} successfully"
+  else
+    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | ${cmd[*]} failed"
+    return 1
+  fi
+}
+
 run_restart_script() {
   local jobid="$1"
   local workdir="$2"
   local left_str="$3"
+  local left_sec
 
   if (( RESTART_ON_KILL == 0 )); then
     return 0
   fi
 
-  if ! command -v vml_restart >/dev/null 2>&1; then
-    log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart not found in PATH"
-    return 1
-  fi
-
-  local left_sec restart_args=()
-
   if ! left_sec="$(parse_timelimit_to_seconds "$left_str")"; then
     log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | cannot parse time left, using default vml_restart"
-  else
-    if (( left_sec <= RESTART_SKIP_THRESHOLD_SEC )); then
-      log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=3h) | skip vml_restart"
-      return 0
-    elif (( left_sec <= RESTART_ARG5_THRESHOLD_SEC )); then
-      restart_args=(5)
-      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (3h-8h) | starting vml_restart 5"
-    else
-      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (>8h) | starting vml_restart"
-    fi
+    run_logged_command "$jobid" "$workdir" vml_restart
+    return $?
   fi
 
-  if (
-    cd "$workdir" && \
-    vml_restart "${restart_args[@]}" >> "$LOG_FILE" 2>&1
-  ); then
-    if (( ${#restart_args[@]} > 0 )); then
-      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart ${restart_args[*]} successfully"
-    else
-      log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | executed vml_restart successfully"
-    fi
+  if (( left_sec <= RESTART_SKIP_THRESHOLD_SEC )); then
+    log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=3h) | skip restart"
+
+  elif (( left_sec <= RESTART_ARG5_THRESHOLD_SEC )); then
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (3h-8h) | starting vml_restart 5"
+    run_logged_command "$jobid" "$workdir" vml_restart 5
+
+  elif (( left_sec > CLEAN_RESTART_THRESHOLD_SEC )); then
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (>21h) | starting vml_clean_restart"
+    run_logged_command "$jobid" "$workdir" vml_clean_restart
+
   else
-    if (( ${#restart_args[@]} > 0 )); then
-      log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart ${restart_args[*]} failed"
-    else
-      log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | vml_restart failed"
-    fi
-    return 1
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (>8h and <=21h) | starting vml_restart"
+    run_logged_command "$jobid" "$workdir" vml_restart
   fi
 }
 
@@ -300,13 +308,13 @@ wait_with_commands() {
 echo "Interactive commands enabled:"
 echo "  monitor         -> monitor only, do not cancel, do not restart (default)"
 echo "  cancel          -> monitor and cancel stale jobs, but do not restart"
-echo "  restart         -> monitor, cancel stale jobs, and conditionally run vml_restart"
+echo "  restart         -> monitor, cancel stale jobs, and conditionally run restart script"
 echo "  warn <minutes>  -> set WARN_AFTER in minutes"
 echo "  kill <minutes>  -> set KILL_AFTER in minutes"
 echo "  status          -> show current mode and thresholds"
 echo "  check           -> run check immediately"
 echo "  quit            -> exit script"
-echo "Periodic check output and vml_restart output will be appended to: $LOG_FILE"
+echo "Periodic check output and restart-script output will be appended to: $LOG_FILE"
 
 print_status
 

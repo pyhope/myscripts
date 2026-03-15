@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -euo pipefail
+
+find . -maxdepth 1 -type f ! \( \
+    -name 'INCAR' -o \
+    -name 'POSCAR' -o \
+    -name 'POTCAR' -o \
+    -name 'KPOINTS' -o \
+    -name 'ML_AB' -o \
+    -name '*.old' -o \
+    -name 'ML_LOGFILE.old.*' -o \
+    -name 'XDATCAR.old.*' -o \
+    -name '*.sh' \
+\) -exec rm -f {} +
+
+sbatch run.sh
