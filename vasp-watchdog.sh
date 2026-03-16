@@ -1,9 +1,9 @@
 #!/usr/bin/bash
-# watch_squeue_idle.sh
+# vasp-watchdog.sh
 
 set -euo pipefail
 
-USER_ID="yp0007"
+USER_ID=$(id -u -n)
 SQUEUE_FMT="%.18i %.9P %.8j %.2t %.10M %.6D %Z %L"
 
 # Default thresholds (seconds)
@@ -18,12 +18,19 @@ RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))    # <= 3 hours: do not restart
 RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))    # > 3 and <= 8 hours: use argument 5
 CLEAN_RESTART_THRESHOLD_SEC=$((21 * 3600))  # > 21 hours: use vml_clean_restart
 
-# Default mode: monitor only
-# monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0
-# cancel  -> CANCEL_ON_STALE=1, RESTART_ON_KILL=0
-# restart -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1
+# Modes:
+# monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0
+# cancel  -> CANCEL_ON_STALE=1, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0
+# restart -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=0
+# recover -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=1
 CANCEL_ON_STALE=0
 RESTART_ON_KILL=0
+RECOVER_DISAPPEARED=0
+
+declare -A PREV_JOBID_BY_WORKDIR=()
+declare -A PREV_TIMELEFT_BY_WORKDIR=()
+declare -A CURR_JOBID_BY_WORKDIR=()
+declare -A CURR_TIMELEFT_BY_WORKDIR=()
 
 log_msg() {
   echo "$*" >> "$LOG_FILE"
@@ -65,12 +72,15 @@ parse_timelimit_to_seconds() {
 
 print_status() {
   local mode warn_min kill_min
+
   if (( CANCEL_ON_STALE == 0 )); then
     mode="monitor_only"
   elif (( RESTART_ON_KILL == 0 )); then
     mode="monitor_cancel"
-  else
+  elif (( RECOVER_DISAPPEARED == 0 )); then
     mode="monitor_cancel_restart"
+  else
+    mode="monitor_cancel_restart_recover"
   fi
 
   warn_min=$((WARN_AFTER / 60))
@@ -129,15 +139,11 @@ run_logged_command() {
   fi
 }
 
-run_restart_script() {
+run_restart_logic() {
   local jobid="$1"
   local workdir="$2"
   local left_str="$3"
   local left_sec
-
-  if (( RESTART_ON_KILL == 0 )); then
-    return 0
-  fi
 
   if ! left_sec="$(parse_timelimit_to_seconds "$left_str")"; then
     log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | cannot parse time left, using default vml_restart"
@@ -162,22 +168,82 @@ run_restart_script() {
   fi
 }
 
+run_restart_script() {
+  local jobid="$1"
+  local workdir="$2"
+  local left_str="$3"
+
+  if (( RESTART_ON_KILL == 0 )); then
+    return 0
+  fi
+
+  run_restart_logic "$jobid" "$workdir" "$left_str"
+}
+
+handle_disappeared_workdirs() {
+  local workdir prev_jobid prev_timeleft prev_left_sec
+
+  if (( RECOVER_DISAPPEARED == 0 )); then
+    return 0
+  fi
+
+  for workdir in "${!PREV_JOBID_BY_WORKDIR[@]}"; do
+    if [[ -n "${CURR_JOBID_BY_WORKDIR[$workdir]+x}" ]]; then
+      continue
+    fi
+
+    prev_jobid="${PREV_JOBID_BY_WORKDIR[$workdir]}"
+    prev_timeleft="${PREV_TIMELEFT_BY_WORKDIR[$workdir]}"
+
+    if ! prev_left_sec="$(parse_timelimit_to_seconds "$prev_timeleft")"; then
+      log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left is unparseable, skip restart logic"
+      continue
+    fi
+
+    if (( prev_left_sec <= RESTART_SKIP_THRESHOLD_SEC )); then
+      log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <=3h, skip restart logic"
+      continue
+    fi
+
+    if [[ ! -d "$workdir" ]]; then
+      log_msg "WARN: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue and directory not found"
+      continue
+    fi
+
+    log_msg "DISAPPEARED: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | missing from current squeue output, running restart logic"
+    run_restart_logic "$prev_jobid" "$workdir" "$prev_timeleft"
+  done
+}
+
+sync_previous_snapshot() {
+  local workdir
+  PREV_JOBID_BY_WORKDIR=()
+  PREV_TIMELEFT_BY_WORKDIR=()
+
+  for workdir in "${!CURR_JOBID_BY_WORKDIR[@]}"; do
+    PREV_JOBID_BY_WORKDIR["$workdir"]="${CURR_JOBID_BY_WORKDIR[$workdir]}"
+    PREV_TIMELEFT_BY_WORKDIR["$workdir"]="${CURR_TIMELEFT_BY_WORKDIR[$workdir]}"
+  done
+}
+
 check_once() {
   local now_epoch
   local jobs
   now_epoch=$(date +%s)
 
-  jobs=$(squeue -u "$USER_ID" --noheader --format="$SQUEUE_FMT")
-  if [[ -z "$jobs" ]]; then
-    log_msg "No jobs running for $USER_ID, exiting."
-    exit 0
-  fi
+  jobs=$(squeue -u "$USER_ID" --noheader --format="$SQUEUE_FMT" || true)
+
+  CURR_JOBID_BY_WORKDIR=()
+  CURR_TIMELEFT_BY_WORKDIR=()
 
   log_msg "===== $(date '+%Y-%m-%d %H:%M:%S%z') ====="
 
-  echo "$jobs" | awk '{print $1"\t"$4"\t"$(NF-1)"\t"$NF}' \
-  | while IFS=$'\t' read -r jobid state workdir timeleft; do
+  if [[ -n "$jobs" ]]; then
+    while IFS=$'\t' read -r jobid state workdir timeleft; do
       [[ -z "${jobid:-}" || -z "${workdir:-}" ]] && continue
+
+      CURR_JOBID_BY_WORKDIR["$workdir"]="$jobid"
+      CURR_TIMELEFT_BY_WORKDIR["$workdir"]="$timeleft"
 
       if [[ "$state" != "R" ]]; then
         continue
@@ -190,6 +256,7 @@ check_once() {
 
       maybe_write_stopcar "$jobid" "$workdir" "${timeleft:-}"
 
+      local newest_epoch diff last_str idle_min idle_sec
       newest_epoch=$(
         find "$workdir" -type f -printf '%T@\n' 2>/dev/null \
         | awk 'BEGIN{max=0} {if ($1>max) max=$1} END{printf "%d", max}'
@@ -198,7 +265,6 @@ check_once() {
       diff=$(( now_epoch - newest_epoch ))
 
       if (( diff >= KILL_AFTER )); then
-        local last_str idle_min idle_sec
         last_str=$(date -d "@$newest_epoch" '+%Y-%m-%d %H:%M:%S%z')
         idle_min=$(( diff / 60 ))
         idle_sec=$(( diff % 60 ))
@@ -217,13 +283,21 @@ check_once() {
         fi
 
       elif (( diff >= WARN_AFTER )); then
-        local last_str idle_min idle_sec
         last_str=$(date -d "@$newest_epoch" '+%Y-%m-%d %H:%M:%S%z')
         idle_min=$(( diff / 60 ))
         idle_sec=$(( diff % 60 ))
         log_msg "WARN: JOBID=$jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
       fi
-    done
+    done < <(echo "$jobs" | awk '{print $1"\t"$4"\t"$(NF-1)"\t"$NF}')
+  fi
+
+  handle_disappeared_workdirs
+  sync_previous_snapshot
+
+  if [[ -z "$jobs" ]]; then
+    log_msg "No jobs running for $USER_ID, exiting."
+    exit 0
+  fi
 }
 
 set_warn_minutes() {
@@ -254,19 +328,29 @@ wait_with_commands() {
         monitor)
           CANCEL_ON_STALE=0
           RESTART_ON_KILL=0
+          RECOVER_DISAPPEARED=0
           echo "COMMAND: monitor-only mode ON"
           print_status
           ;;
         cancel)
           CANCEL_ON_STALE=1
           RESTART_ON_KILL=0
+          RECOVER_DISAPPEARED=0
           echo "COMMAND: monitor+cancel mode ON"
           print_status
           ;;
         restart)
           CANCEL_ON_STALE=1
           RESTART_ON_KILL=1
+          RECOVER_DISAPPEARED=0
           echo "COMMAND: monitor+cancel+restart mode ON"
+          print_status
+          ;;
+        recover)
+          CANCEL_ON_STALE=1
+          RESTART_ON_KILL=1
+          RECOVER_DISAPPEARED=1
+          echo "COMMAND: monitor+cancel+restart+recover mode ON"
           print_status
           ;;
         status)
@@ -309,6 +393,7 @@ echo "Interactive commands enabled:"
 echo "  monitor         -> monitor only, do not cancel, do not restart (default)"
 echo "  cancel          -> monitor and cancel stale jobs, but do not restart"
 echo "  restart         -> monitor, cancel stale jobs, and conditionally run restart script"
+echo "  recover         -> restart mode + recover disappeared workdirs from previous round"
 echo "  warn <minutes>  -> set WARN_AFTER in minutes"
 echo "  kill <minutes>  -> set KILL_AFTER in minutes"
 echo "  status          -> show current mode and thresholds"
