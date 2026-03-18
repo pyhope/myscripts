@@ -33,14 +33,14 @@ def parse_args():
     parser.add_argument(
         "--force-window",
         type=int,
-        default=81,
-        help="Moving-average window for BEEF and BEFPS plots. Default: 81",
+        default=101,
+        help="Moving-average window for BEEF and BEFPS plots. Default: 101",
     )
     parser.add_argument(
         "--sf-window",
         type=int,
-        default=81,
-        help="Moving-average window for SFF/SPFFPS plots. Default: 81",
+        default=101,
+        help="Moving-average window for SFF/SPFFPS plots. Default: 101",
     )
     parser.add_argument(
         "--force-skip",
