@@ -14,9 +14,9 @@ KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
 LOG_FILE="$(pwd)/sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
-RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))    # <= 3 hours: do not restart
-RESTART_ARG5_THRESHOLD_SEC=$((8 * 3600))    # > 3 and <= 8 hours: use argument 5
+RESTART_SKIP_THRESHOLD_SEC=$((3 * 3600))    # < 3 hours: do not restart
 CLEAN_RESTART_THRESHOLD_SEC=$((21 * 3600))  # > 21 hours: use vml_clean_restart
+RESTART_EXTRA_SEC=$((1 * 3600))             # restart with remaining time + 1 h
 
 # Modes:
 # monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0
@@ -68,6 +68,22 @@ parse_timelimit_to_seconds() {
   [[ "$secs"  =~ ^[0-9]+$ ]] || return 1
 
   echo $((10#$days*86400 + 10#$hours*3600 + 10#$mins*60 + 10#$secs))
+}
+
+calc_restart_hours() {
+  local left_sec="$1"
+  local total_sec hours remainder
+
+  total_sec=$((left_sec + RESTART_EXTRA_SEC))
+  hours=$((total_sec / 3600))
+  remainder=$((total_sec % 3600))
+
+  if (( remainder >= 1800 )); then
+    hours=$((hours + 1))
+  fi
+
+  (( hours < 1 )) && hours=1
+  echo "$hours"
 }
 
 print_status() {
@@ -143,7 +159,7 @@ run_restart_logic() {
   local jobid="$1"
   local workdir="$2"
   local left_str="$3"
-  local left_sec
+  local left_sec restart_hours
 
   if ! left_sec="$(parse_timelimit_to_seconds "$left_str")"; then
     log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | cannot parse time left, using default vml_restart"
@@ -151,20 +167,17 @@ run_restart_logic() {
     return $?
   fi
 
-  if (( left_sec <= RESTART_SKIP_THRESHOLD_SEC )); then
-    log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=3h) | skip restart"
-
-  elif (( left_sec <= RESTART_ARG5_THRESHOLD_SEC )); then
-    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (3h-8h) | starting vml_restart 5"
-    run_logged_command "$jobid" "$workdir" vml_restart 5
+  if (( left_sec < RESTART_SKIP_THRESHOLD_SEC )); then
+    log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<3h) | skip restart"
 
   elif (( left_sec > CLEAN_RESTART_THRESHOLD_SEC )); then
     log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (>21h) | starting vml_clean_restart"
     run_logged_command "$jobid" "$workdir" vml_clean_restart
 
   else
-    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (>8h and <=21h) | starting vml_restart"
-    run_logged_command "$jobid" "$workdir" vml_restart
+    restart_hours="$(calc_restart_hours "$left_sec")"
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (3h-21h, +1h then round to nearest hour) | starting vml_restart $restart_hours"
+    run_logged_command "$jobid" "$workdir" vml_restart "$restart_hours"
   fi
 }
 
@@ -200,8 +213,8 @@ handle_disappeared_workdirs() {
       continue
     fi
 
-    if (( prev_left_sec <= RESTART_SKIP_THRESHOLD_SEC )); then
-      log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <=3h, skip restart logic"
+    if (( prev_left_sec < RESTART_SKIP_THRESHOLD_SEC )); then
+      log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <3h, skip restart logic"
       continue
     fi
 
