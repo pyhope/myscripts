@@ -37,6 +37,14 @@ log_msg() {
   echo "$*" >> "$LOG_FILE"
 }
 
+append_unique_line() {
+  local file="$1"
+  local line="$2"
+
+  touch "$file"
+  grep -Fxq -- "$line" "$file" || printf '%s\n' "$line" >> "$file"
+}
+
 parse_timelimit_to_seconds() {
   local s="${1:-}"
   s="${s// /}"
@@ -127,6 +135,7 @@ maybe_write_stopcar() {
 
     if ( cd "$workdir" && echo "$content" > STOPCAR ); then
       log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str (<=threshold) | wrote STOPCAR"
+      append_unique_line "$FINISHED_DIRS_FILE" "$workdir"
     else
       log_msg "ERROR: JOBID=$jobid | WORK_DIR=$workdir | failed to write STOPCAR"
     fi
@@ -216,7 +225,7 @@ handle_disappeared_workdirs() {
 
     if (( prev_left_sec < RESTART_SKIP_THRESHOLD_SEC )); then
       log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <3h, mark as finished"
-      printf '%s\n' "$workdir" >> "$FINISHED_DIRS_FILE"
+      append_unique_line "$FINISHED_DIRS_FILE" "$workdir"
       continue
     fi
 
@@ -290,7 +299,7 @@ check_once() {
           log_msg "STALE: scancel $jobid | WORK_DIR=$workdir | last_update=$last_str | idle=${idle_min}m${idle_sec}s | time_left=${timeleft:-N/A}"
 
           if scancel "$jobid"; then
-            printf '%s\n' "$workdir" >> "$KILLED_DIRS_FILE"
+            append_unique_line "$KILLED_DIRS_FILE" "$workdir"
             run_restart_script "$jobid" "$workdir" "${timeleft:-}"
           else
             log_msg "ERROR: failed to scancel $jobid"
