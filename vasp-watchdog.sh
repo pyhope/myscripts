@@ -11,6 +11,7 @@ WARN_AFTER=$((5 * 60))
 KILL_AFTER=$((30 * 60))
 
 KILLED_DIRS_FILE="$(pwd)/rerun_list.txt"
+FINISHED_DIRS_FILE="$(pwd)/finished_list.txt"
 LOG_FILE="$(pwd)/sq.log"
 
 STOPCAR_THRESHOLD_SEC=$((20 * 60))
@@ -214,7 +215,8 @@ handle_disappeared_workdirs() {
     fi
 
     if (( prev_left_sec < RESTART_SKIP_THRESHOLD_SEC )); then
-      log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <3h, skip restart logic"
+      log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <3h, mark as finished"
+      printf '%s\n' "$workdir" >> "$FINISHED_DIRS_FILE"
       continue
     fi
 
