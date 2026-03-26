@@ -29,3 +29,23 @@ rollback_one() {
 for base in ML_LOGFILE XDATCAR; do
     rollback_one "$base"
 done
+
+max_slurm_file=""
+max_job_id=-1
+
+for f in slurm-*.old; do
+    [[ -f "$f" ]] || continue
+
+    if [[ "$f" =~ ^slurm-([0-9]+).*\.old$ ]]; then
+        id="${BASH_REMATCH[1]}"
+        if (( id > max_job_id )); then
+            max_job_id=$id
+            max_slurm_file="$f"
+        fi
+    fi
+done
+
+if [[ -n "$max_slurm_file" ]]; then
+    echo "Removing $max_slurm_file"
+    rm -f -- "$max_slurm_file"
+fi
