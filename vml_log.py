@@ -54,7 +54,7 @@ def parse_args():
         dest="err_skip_steps",
         type=int,
         default=20,
-        help="Skip steps smaller than this value in ERR plots. Default: 20",
+        help="Skip steps smaller than this value in ERR and ERPS plots. Default: 20",
     )
     parser.add_argument(
         "--sf-skip",
@@ -73,12 +73,13 @@ sys_list = args.sys_list
 i_list = args.i_list
 
 err_dir = WDIR / "_results/err"
+erps_dir = WDIR / "_results/erps"
 beef_dir = WDIR / "_results/beef"
 befps_dir = WDIR / "_results/befps"
 sff_dir = WDIR / "_results/sff"
 spffps_dir = WDIR / "_results/spffps"
 
-for d in [err_dir, beef_dir, befps_dir, sff_dir, spffps_dir]:
+for d in [err_dir, erps_dir, beef_dir, befps_dir, sff_dir, spffps_dir]:
     d.mkdir(exist_ok=True, parents=True)
 
 force_window = args.force_window
@@ -212,6 +213,7 @@ def collect_logs():
                 "BEEF": beef_dir / f"{param_name}.dat",
                 "BEFPS": befps_dir / f"{param_name}.dat",
                 "ERR": err_dir / f"{param_name}.dat",
+                "ERPS": erps_dir / f"{param_name}.dat",
                 "SFF": sff_dir / f"{param_name}.dat",
                 "SPFFPS": spffps_dir / f"{param_name}.dat",
             }
@@ -240,7 +242,7 @@ def collect_logs():
                 if last_beef is not None:
                     prev_last = last_beef
 
-                for key in ["BEFPS", "ERR", "SFF", "SPFFPS"]:
+                for key in ["BEFPS", "ERR", "ERPS", "SFF", "SPFFPS"]:
                     first_flags[key], _ = append_shifted_block(
                         collected[key], logfile, key, offset, first_flags[key]
                     )
@@ -252,10 +254,7 @@ def collect_logs():
                 f"Done: {sys_name}/{i_name}. "
                 f"Log files processed: {len(logfiles)}. "
                 f"BEEF lines: {len(collected['BEEF'])}. "
-                f"BEFPS lines: {len(collected['BEFPS'])}. "
                 f"ERR lines: {len(collected['ERR'])}. "
-                f"SFF lines: {len(collected['SFF'])}. "
-                f"SPFFPS lines: {len(collected['SPFFPS'])}."
             )
 
 
@@ -321,6 +320,46 @@ def read_triplet_species_file(filepath: Path, key: str, value1_name: str, value2
     return data_out
 
 
+def read_pair_species_file(filepath: Path, key: str, value_name: str):
+    data_out = {}
+
+    with filepath.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+
+            parts = s.split()
+            if parts[0] != key:
+                continue
+
+            x = float(parts[1])
+
+            # format: KEY nstep el value el value ...
+            for i in range(2, len(parts), 2):
+                el = parts[i]
+                if i + 1 >= len(parts):
+                    break
+
+                try:
+                    v = float(parts[i + 1])
+                except ValueError:
+                    # e.g. NaN is allowed by float(), but keep this safe anyway
+                    continue
+
+                if el not in data_out:
+                    data_out[el] = {"x": [], value_name: []}
+
+                data_out[el]["x"].append(x)
+                data_out[el][value_name].append(v)
+
+    for el in data_out:
+        for k in data_out[el]:
+            data_out[el][k] = np.asarray(data_out[el][k], dtype=float)
+
+    return data_out
+
+
 def read_sff(filepath: Path):
     data = np.loadtxt(filepath, comments="#", dtype=str)
     data = np.atleast_2d(data)
@@ -360,6 +399,12 @@ def read_befps(filepath: Path):
     )
 
 
+def read_erps(filepath: Path):
+    return read_pair_species_file(
+        filepath, "ERPS", "rmse_force"
+    )
+
+
 def init_species_panel_figure(n_panels):
     nrows, ncols = 2, 3
     max_panels = nrows * ncols
@@ -395,7 +440,7 @@ def finalize_species_panel_figure(fig, axes, n_panels, legend_handles, legend_la
         legend_handles,
         legend_labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.95),
+        bbox_to_anchor=(0.5, 0.97),
         ncol=min(len(legend_labels), 8),
         frameon=False,
     )
@@ -486,6 +531,101 @@ def plot_err(params, skip_steps=0):
 
     mpt.savepdf("RMSE")
     plt.show()
+
+
+def plot_erps(params, skip_steps=0):
+    all_elements = set()
+
+    for param in params:
+        f_erps = erps_dir / f"{param}.dat"
+        if not f_erps.exists() or f_erps.stat().st_size == 0:
+            continue
+        erps = read_erps(f_erps)
+        all_elements.update(erps.keys())
+
+    all_elements = sorted(all_elements)
+    n_panels = 1 + len(all_elements)
+
+    fig, axes, n_panels = init_species_panel_figure(n_panels)
+    all_elements = all_elements[: n_panels - 1]
+
+    legend_handles = []
+    legend_labels = []
+
+    for param in params:
+        f_err = err_dir / f"{param}.dat"
+        f_erps = erps_dir / f"{param}.dat"
+
+        if (not f_err.exists() or f_err.stat().st_size == 0) and \
+           (not f_erps.exists() or f_erps.stat().st_size == 0):
+            continue
+
+        try:
+            if f_err.exists() and f_err.stat().st_size > 0:
+                x_err, _, force_err, _ = np.loadtxt(
+                    f_err,
+                    usecols=(1, 2, 3, 4),
+                    unpack=True,
+                    comments="#",
+                )
+                x_err, force_err = apply_skip(
+                    x_err, force_err, skip_steps=skip_steps
+                )
+            else:
+                x_err = np.array([])
+                force_err = np.array([])
+
+            erps = (
+                read_erps(f_erps)
+                if f_erps.exists() and f_erps.stat().st_size > 0
+                else {}
+            )
+        except Exception as exc:
+            print(f"Failed to read {param}: {exc}")
+            continue
+
+        # First panel: identical style to the middle panel of plot_err()
+        if x_err.size > 0:
+            line = axes[0].plot(x_err, force_err, marker="s", label=param)[0]
+            if param not in legend_labels:
+                legend_handles.append(line)
+                legend_labels.append(param)
+
+        for iel, el in enumerate(all_elements):
+            ax = axes[iel + 1]
+            if el not in erps:
+                continue
+
+            x = erps[el]["x"]
+            y = erps[el]["rmse_force"]
+            x, y = apply_skip(x, y, skip_steps=skip_steps)
+
+            if x.size == 0:
+                continue
+
+            ax.plot(x, y, marker="s", label=param)
+
+    axes[0].set_ylabel("Force RMSE (eV/Å)")
+    axes[3].set_ylabel("Force RMSE (eV/Å)")
+    axes[0].text(
+        0.03, 0.97, "ERR",
+        transform=axes[0].transAxes,
+        ha="left", va="top", fontsize=20, fontweight="bold"
+    )
+
+    for iel, el in enumerate(all_elements):
+        axes[iel + 1].text(
+            0.03, 0.97, el,
+            transform=axes[iel + 1].transAxes,
+            ha="left", va="top", fontsize=20, fontweight="bold"
+        )
+
+    for ax in axes[3:]:
+        ax.set_xlabel("Time (fs)")
+
+    finalize_species_panel_figure(
+        fig, axes, n_panels, legend_handles, legend_labels, "ERPS"
+    )
 
 
 def plot_befps(params, smooth_window=81, skip_steps=0):
@@ -678,6 +818,7 @@ def main():
     params = get_params()
     plot_beef(params, smooth_window=force_window, skip_steps=force_skip_steps)
     plot_err(params, skip_steps=err_skip_steps)
+    plot_erps(params, skip_steps=err_skip_steps)
     plot_befps(params, smooth_window=force_window, skip_steps=force_skip_steps)
     plot_sff(params, smooth_window=sf_window, skip_steps=sf_skip_steps)
 
