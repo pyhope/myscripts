@@ -20,13 +20,15 @@ CLEAN_RESTART_THRESHOLD_SEC=$((21 * 3600))  # > 21 hours: use vml_clean_restart
 RESTART_EXTRA_SEC=$((1 * 3600))             # restart with remaining time + 1 h
 
 # Modes:
-# monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0
-# cancel  -> CANCEL_ON_STALE=1, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0
-# restart -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=0
-# recover -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=1
+# monitor -> CANCEL_ON_STALE=0, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0, FORCE_RESTART_24=0
+# cancel  -> CANCEL_ON_STALE=1, RESTART_ON_KILL=0, RECOVER_DISAPPEARED=0, FORCE_RESTART_24=0
+# restart -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=0, FORCE_RESTART_24=0
+# recover -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=1, FORCE_RESTART_24=0
+# force24 -> CANCEL_ON_STALE=1, RESTART_ON_KILL=1, RECOVER_DISAPPEARED=1, FORCE_RESTART_24=1
 CANCEL_ON_STALE=0
 RESTART_ON_KILL=0
 RECOVER_DISAPPEARED=0
+FORCE_RESTART_24=0
 
 declare -A PREV_JOBID_BY_WORKDIR=()
 declare -A PREV_TIMELEFT_BY_WORKDIR=()
@@ -98,7 +100,9 @@ calc_restart_hours() {
 print_status() {
   local mode warn_min kill_min
 
-  if (( CANCEL_ON_STALE == 0 )); then
+  if (( FORCE_RESTART_24 == 1 )); then
+    mode="monitor_cancel_force24_recover"
+  elif (( CANCEL_ON_STALE == 0 )); then
     mode="monitor_only"
   elif (( RESTART_ON_KILL == 0 )); then
     mode="monitor_cancel"
@@ -118,6 +122,11 @@ maybe_write_stopcar() {
   local jobid="$1"
   local workdir="$2"
   local left_str="$3"
+
+  # force24 mode: never write STOPCAR
+  if (( FORCE_RESTART_24 == 1 )); then
+    return 0
+  fi
 
   local left_sec
   if ! left_sec="$(parse_timelimit_to_seconds "$left_str")"; then
@@ -171,6 +180,13 @@ run_restart_logic() {
   local left_str="$3"
   local left_sec restart_hours
 
+  # force24 mode: always do vml_restart 24
+  if (( FORCE_RESTART_24 == 1 )); then
+    log_msg "ACTION: JOBID=$jobid | WORK_DIR=$workdir | force24 mode | starting vml_restart 24"
+    run_logged_command "$jobid" "$workdir" vml_restart 24
+    return $?
+  fi
+
   if ! left_sec="$(parse_timelimit_to_seconds "$left_str")"; then
     log_msg "INFO: JOBID=$jobid | WORK_DIR=$workdir | time_left=$left_str | cannot parse time left, using default vml_restart"
     run_logged_command "$jobid" "$workdir" vml_restart
@@ -218,6 +234,17 @@ handle_disappeared_workdirs() {
     prev_jobid="${PREV_JOBID_BY_WORKDIR[$workdir]}"
     prev_timeleft="${PREV_TIMELEFT_BY_WORKDIR[$workdir]}"
 
+    if [[ ! -d "$workdir" ]]; then
+      log_msg "WARN: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue and directory not found"
+      continue
+    fi
+
+    if (( FORCE_RESTART_24 == 1 )); then
+      log_msg "DISAPPEARED: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | force24 mode | running vml_restart 24"
+      run_restart_logic "$prev_jobid" "$workdir" "$prev_timeleft"
+      continue
+    fi
+
     if ! prev_left_sec="$(parse_timelimit_to_seconds "$prev_timeleft")"; then
       log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left is unparseable, skip restart logic"
       continue
@@ -226,11 +253,6 @@ handle_disappeared_workdirs() {
     if (( prev_left_sec < RESTART_SKIP_THRESHOLD_SEC )); then
       log_msg "INFO: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue but previous time left <3h, mark as finished"
       append_unique_line "$FINISHED_DIRS_FILE" "$workdir"
-      continue
-    fi
-
-    if [[ ! -d "$workdir" ]]; then
-      log_msg "WARN: PREV_JOBID=$prev_jobid | WORK_DIR=$workdir | prev_time_left=$prev_timeleft | disappeared from squeue and directory not found"
       continue
     fi
 
@@ -353,6 +375,7 @@ wait_with_commands() {
           CANCEL_ON_STALE=0
           RESTART_ON_KILL=0
           RECOVER_DISAPPEARED=0
+          FORCE_RESTART_24=0
           echo "COMMAND: monitor-only mode ON"
           print_status
           ;;
@@ -360,6 +383,7 @@ wait_with_commands() {
           CANCEL_ON_STALE=1
           RESTART_ON_KILL=0
           RECOVER_DISAPPEARED=0
+          FORCE_RESTART_24=0
           echo "COMMAND: monitor+cancel mode ON"
           print_status
           ;;
@@ -367,6 +391,7 @@ wait_with_commands() {
           CANCEL_ON_STALE=1
           RESTART_ON_KILL=1
           RECOVER_DISAPPEARED=0
+          FORCE_RESTART_24=0
           echo "COMMAND: monitor+cancel+restart mode ON"
           print_status
           ;;
@@ -374,7 +399,16 @@ wait_with_commands() {
           CANCEL_ON_STALE=1
           RESTART_ON_KILL=1
           RECOVER_DISAPPEARED=1
+          FORCE_RESTART_24=0
           echo "COMMAND: monitor+cancel+restart+recover mode ON"
+          print_status
+          ;;
+        force24)
+          CANCEL_ON_STALE=1
+          RESTART_ON_KILL=1
+          RECOVER_DISAPPEARED=1
+          FORCE_RESTART_24=1
+          echo "COMMAND: force24 mode ON (no STOPCAR; stale/disappeared -> vml_restart 24)"
           print_status
           ;;
         status)
@@ -418,6 +452,7 @@ echo "  monitor         -> monitor only, do not cancel, do not restart (default)
 echo "  cancel          -> monitor and cancel stale jobs, but do not restart"
 echo "  restart         -> monitor, cancel stale jobs, and conditionally run restart script"
 echo "  recover         -> restart mode + recover disappeared workdirs from previous round"
+echo "  force24         -> no STOPCAR; stale/disappeared always run vml_restart 24"
 echo "  warn <minutes>  -> set WARN_AFTER in minutes"
 echo "  kill <minutes>  -> set KILL_AFTER in minutes"
 echo "  status          -> show current mode and thresholds"

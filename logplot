@@ -30,7 +30,7 @@ if args.properties:
 else:
     props = ["Temp", "Press", "Volume", "TotEng"]
 
-units = {"Temp": "K", "Press": "GPa", "Volume": "A^3", "TotEng": "eV", "Pxx": "GPa", "Pyy": "GPa", "Pzz": "GPa", "Pxy": "GPa", "Pxz": "GPa", "Pyz": "GPa"}
+units = {"Temp": "K", "Press": "GPa", "Volume": "A^3", "TotEng": "eV", "Pxx": "GPa", "Pyy": "GPa", "Pzz": "GPa", "Pxy": "GPa", "Pxz": "GPa", "Pyz": "GPa", 'Lx': 'A', 'Ly': 'A', 'Lz': 'A'}
 
 props_num = len(props)
 
@@ -64,6 +64,10 @@ if 'Lx' in props and 'Ly' in props:
     with open("Rab.txt", "w") as file:
         file.write(f"{mean_r_xy:.6f}\n")
         file.write(f"{std_r_xy:.6f}\n")
+    with open("Lx.txt", "w") as file:
+        file.write(f"{np.mean(lx):.6f}\n")
+    with open("Ly.txt", "w") as file:
+        file.write(f"{np.mean(ly):.6f}\n")
 
 ax[-1].set_xlabel('Step')
 

@@ -22,7 +22,7 @@ if args.sequential and args.start_from_last:
 
 # Get true start timestep if not using sequential mode
 if args.start_from_last and not args.sequential:
-    from lammps_logfile import File
+    from logfile import File
     log = File(args.logfilename)
     steps = log.get("Step")
     start = steps[-1] - args.start_from_last
