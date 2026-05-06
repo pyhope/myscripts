@@ -17,6 +17,8 @@ parser.add_argument("-n", "--step_number",type=int,default=1, help="Plot every t
 parser.add_argument("-bs", "--begin_step",type=int,default=0, help="Begin time step")
 parser.add_argument("-es", "--end_step",type=int,default=-1, help="End time step")
 parser.add_argument("-rn", "--run_number",type=int,default=-1, help="Lammps simulations commonly involve several run-commands. Here you may choose what run you want the log data from. Default of :code:`-1` returns data from all runs concatenated")
+parser.add_argument("-save", "--save_data",action="store_true", help="Save the step-energy data to a text file")
+
 args = parser.parse_args()
 
 log = logfile.File(args.input_file)
@@ -30,7 +32,7 @@ if args.properties:
 else:
     props = ["Temp", "Press", "Volume", "TotEng"]
 
-units = {"Temp": "K", "Press": "GPa", "Volume": "A^3", "TotEng": "eV", "Pxx": "GPa", "Pyy": "GPa", "Pzz": "GPa", "Pxy": "GPa", "Pxz": "GPa", "Pyz": "GPa", 'Lx': 'A', 'Ly': 'A', 'Lz': 'A'}
+units = {"Temp": "K", "Press": "GPa", "Volume": "A^3", "TotEng": "eV", "PotEng": "eV", "Pxx": "GPa", "Pyy": "GPa", "Pzz": "GPa", "Pxy": "GPa", "Pxz": "GPa", "Pyz": "GPa", 'Lx': 'A', 'Ly': 'A', 'Lz': 'A'}
 
 props_num = len(props)
 
@@ -64,10 +66,21 @@ if 'Lx' in props and 'Ly' in props:
     with open("Rab.txt", "w") as file:
         file.write(f"{mean_r_xy:.6f}\n")
         file.write(f"{std_r_xy:.6f}\n")
+
+if 'Lx' in props and 'Lz' in props:
+    lx = log.get("Lx", run_num=args.run_number)[begin:end]
+    lz = log.get("Lz", run_num=args.run_number)[begin:end]
     with open("Lx.txt", "w") as file:
         file.write(f"{np.mean(lx):.6f}\n")
-    with open("Ly.txt", "w") as file:
-        file.write(f"{np.mean(ly):.6f}\n")
+    with open("Lz.txt", "w") as file:
+        file.write(f"{np.mean(lz):.6f}\n")
+
+if args.save_data and "PotEng" in props:
+    x = log.get("Step", run_num=args.run_number)
+    y = log.get("PotEng", run_num=args.run_number)
+    with open("step_poteng.txt", "w") as file:
+        for step, poteng in zip(x[begin:], y[begin:]):
+            file.write(f"{step}\t{poteng}\n")
 
 ax[-1].set_xlabel('Step')
 
